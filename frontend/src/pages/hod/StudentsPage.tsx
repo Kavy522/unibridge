@@ -1,0 +1,218 @@
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { Download, Eye, Trash2, Upload, UserPlus } from 'lucide-react'
+import { hodApi } from '@/api/hod'
+import { errorMessage } from '@/api/client'
+import { useHodScope } from '@/hooks/hod/useHodScope'
+import { useDebounce } from '@/hooks/shared/useDebounce'
+import type { StudentRow } from '@/types/hod'
+import { PageShell } from '@/components/shared/PageShell'
+import { FilterBar } from '@/components/shared/FilterBar'
+import { SearchInput } from '@/components/shared/SearchInput'
+import { CsvUploadModal } from '@/components/shared/CsvUploadModal'
+import { AttendancePctCell } from '@/components/shared/AttendancePctCell'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Select } from '@/components/ui/Select'
+import { Avatar } from '@/components/ui/Avatar'
+import { Table, Td, Th, Tr } from '@/components/ui/Table'
+import { Pagination } from '@/components/ui/Pagination'
+import { TableSkeleton } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { StudentProfileModal } from './students/StudentProfileModal'
+import { AddStudentModal } from './students/AddStudentModal'
+
+const YEAR_LEVELS = ['FY', 'SY', 'TY', 'FINAL']
+const STATUSES = ['ACTIVE', 'AT_RISK', 'INACTIVE']
+
+const statusTone = { ACTIVE: 'success', AT_RISK: 'danger', INACTIVE: 'neutral' } as const
+
+export default function StudentsPage() {
+  const qc = useQueryClient()
+  const scope = useHodScope()
+
+  const [search, setSearch] = useState('')
+  const [yearLevel, setYearLevel] = useState('')
+  const [batchId, setBatchId] = useState('')
+  const [status, setStatus] = useState('')
+  const [page, setPage] = useState(1)
+
+  const [profileOf, setProfileOf] = useState<string | null>(null)
+  const [showUpload, setShowUpload] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [deleteOf, setDeleteOf] = useState<StudentRow | null>(null)
+
+  const debouncedSearch = useDebounce(search)
+  const filters = useMemo(
+    () => ({
+      search: debouncedSearch || undefined,
+      yearLevel: yearLevel || undefined,
+      batchId: batchId || undefined,
+      status: status || undefined,
+      page,
+      limit: 20,
+    }),
+    [debouncedSearch, yearLevel, batchId, status, page],
+  )
+
+  const list = useQuery({
+    queryKey: ['hod', 'students', filters],
+    queryFn: () => hodApi.students.list(filters),
+  })
+
+  const del = useMutation({
+    mutationFn: (enrollmentNo: string) => hodApi.students.remove(enrollmentNo),
+    onSuccess: () => {
+      toast.success('Student removed')
+      qc.invalidateQueries({ queryKey: ['hod', 'students'] })
+      setDeleteOf(null)
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
+
+  const batchOptions = scope.data?.batches.map((b) => ({ value: b.id, label: b.code })) ?? []
+
+  function resetPage<T>(setter: (v: T) => void) {
+    return (v: T) => {
+      setter(v)
+      setPage(1)
+    }
+  }
+
+  return (
+    <PageShell
+      title="Students"
+      subtitle={list.data ? `${list.data.total.toLocaleString('en-IN')} students` : 'Manage student records'}
+      action={
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" leftIcon={<Download size={15} />} onClick={() => hodApi.students.export(filters)}>
+            Export
+          </Button>
+          <Button variant="outline" leftIcon={<Upload size={15} />} onClick={() => setShowUpload(true)}>
+            Upload CSV
+          </Button>
+          <Button leftIcon={<UserPlus size={15} />} onClick={() => setShowAdd(true)}>
+            Add Student
+          </Button>
+        </div>
+      }
+    >
+      <FilterBar>
+        <div className="w-64 max-w-full">
+          <SearchInput value={search} onChange={resetPage(setSearch)} placeholder="Search name or enrollment no." />
+        </div>
+        <Select className="w-36" value={yearLevel} onChange={(e) => resetPage(setYearLevel)(e.target.value)} placeholder="All Years">
+          {YEAR_LEVELS.map((y) => <option key={y} value={y}>{y}</option>)}
+        </Select>
+        <Select className="w-36" value={batchId} onChange={(e) => resetPage(setBatchId)(e.target.value)} placeholder="All Batches" options={batchOptions} />
+        <Select className="w-40" value={status} onChange={(e) => resetPage(setStatus)(e.target.value)} placeholder="All Status">
+          {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+        </Select>
+      </FilterBar>
+
+      <Card className="overflow-hidden">
+        {list.isLoading ? (
+          <div className="p-4"><TableSkeleton rows={8} cols={6} /></div>
+        ) : list.data && list.data.data.length === 0 ? (
+          <EmptyState title="No students found" description="Try adjusting your filters or upload a student CSV." className="border-0" />
+        ) : (
+          <>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Student</Th>
+                  <Th>Enrollment No.</Th>
+                  <Th>Branch</Th>
+                  <Th>Batch</Th>
+                  <Th>Roll No.</Th>
+                  <Th>Attendance</Th>
+                  <Th>Status</Th>
+                  <Th className="text-right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.data?.data.map((s) => (
+                  <Tr key={s.enrollmentNo}>
+                    <Td>
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={s.name} size={32} />
+                        <span className="font-medium">{s.name}</span>
+                      </div>
+                    </Td>
+                    <Td className="font-mono text-xs text-text-secondary">{s.enrollmentNo}</Td>
+                    <Td>{s.branch}</Td>
+                    <Td>{s.batchCode ?? '—'}</Td>
+                    <Td className="whitespace-nowrap text-text-secondary">{s.rollNo ?? '—'}</Td>
+                    <Td><AttendancePctCell pct={s.attendancePct} /></Td>
+                    <Td><Badge tone={statusTone[s.status]}>{s.status.replace('_', ' ')}</Badge></Td>
+                    <Td>
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => setProfileOf(s.enrollmentNo)} className="flex h-8 w-8 items-center justify-center rounded-sm text-text-secondary hover:bg-primary-light hover:text-primary" title="View profile">
+                          <Eye size={16} />
+                        </button>
+                        <button onClick={() => setDeleteOf(s)} className="flex h-8 w-8 items-center justify-center rounded-sm text-text-secondary hover:bg-danger-light hover:text-danger" title="Remove">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+            {list.data && (
+              <div className="border-t border-border px-3">
+                <Pagination page={list.data.page} totalPages={list.data.totalPages} total={list.data.total} limit={list.data.limit} onPage={setPage} />
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+
+      {profileOf && <StudentProfileModal enrollmentNo={profileOf} onClose={() => setProfileOf(null)} />}
+
+      <AddStudentModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={() => qc.invalidateQueries({ queryKey: ['hod', 'students'] })}
+      />
+
+      <CsvUploadModal
+        open={showUpload}
+        onClose={() => setShowUpload(false)}
+        title="Upload Students"
+        onUpload={hodApi.students.uploadCsv}
+        onDownloadTemplate={hodApi.students.downloadTemplate}
+        canSubmit={!!batchId}
+        extraFields={
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase text-text-secondary">Target Batch *</label>
+              <Select value={batchId} onChange={(e) => setBatchId(e.target.value)} placeholder="Select batch" options={batchOptions} />
+            </div>
+            <div className="flex items-end text-xs text-text-muted">
+              Enrolls into {scope.data?.activeSemester.label ?? 'active semester'}.
+            </div>
+          </div>
+        }
+        buildForm={(form) => {
+          form.append('batchId', batchId)
+          if (scope.data?.activeSemester.id) form.append('semesterId', scope.data.activeSemester.id)
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteOf}
+        title="Remove student?"
+        message={<>This soft-deletes <b>{deleteOf?.name}</b> ({deleteOf?.enrollmentNo}). Historical records are preserved.</>}
+        destructive
+        confirmLabel="Remove"
+        loading={del.isPending}
+        onConfirm={() => deleteOf && del.mutate(deleteOf.enrollmentNo)}
+        onCancel={() => setDeleteOf(null)}
+      />
+    </PageShell>
+  )
+}

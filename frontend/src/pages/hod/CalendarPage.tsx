@@ -1,0 +1,164 @@
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { CalendarPlus, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react'
+import { hodApi } from '@/api/hod'
+import { errorMessage } from '@/api/client'
+import { useHodScope } from '@/hooks/hod/useHodScope'
+import type { HodCalendarEvent } from '@/types/hod'
+import { PageShell } from '@/components/shared/PageShell'
+import { CalendarGrid, EVENT_TONE } from '@/components/shared/CalendarGrid'
+import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
+import { Textarea } from '@/components/ui/Textarea'
+import { format } from 'date-fns'
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const TYPES = ['HOLIDAY', 'EXAM', 'CULTURAL', 'PHASE', 'OTHER']
+
+export default function CalendarPage() {
+  const qc = useQueryClient()
+  const scope = useHodScope()
+  const semesterId = scope.data?.activeSemester.id
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth())
+  const [editing, setEditing] = useState<Partial<HodCalendarEvent> | null>(null)
+
+  const events = useQuery({
+    queryKey: ['hod', 'calendar', year, month],
+    queryFn: () => hodApi.calendar.events({ year, month: month + 1 }),
+  })
+  const upcoming = useQuery({ queryKey: ['hod', 'calendar', 'upcoming'], queryFn: () => hodApi.calendar.upcoming(6) })
+  const timeline = useQuery({ queryKey: ['hod', 'calendar', 'timeline', semesterId], queryFn: () => hodApi.calendar.phaseTimeline(semesterId), enabled: !!semesterId })
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['hod', 'calendar'] })
+  }
+
+  const save = useMutation({
+    mutationFn: (e: Partial<HodCalendarEvent>) => {
+      const body = { title: e.title, type: e.type, startDate: e.date, endDate: e.date, description: e.description, visibleTo: 'ALL', semesterId }
+      return e.id ? hodApi.calendar.update(e.id, body) : hodApi.calendar.create(body)
+    },
+    onSuccess: () => { toast.success('Event saved'); invalidate(); setEditing(null) },
+    onError: (err) => toast.error(errorMessage(err)),
+  })
+  const del = useMutation({
+    mutationFn: (id: string) => hodApi.calendar.remove(id),
+    onSuccess: () => { toast.success('Event deleted'); invalidate(); setEditing(null) },
+    onError: (err) => toast.error(errorMessage(err)),
+  })
+
+  function prevMonth() { if (month === 0) { setMonth(11); setYear((y) => y - 1) } else setMonth((m) => m - 1) }
+  function nextMonth() { if (month === 11) { setMonth(0); setYear((y) => y + 1) } else setMonth((m) => m + 1) }
+
+  return (
+    <PageShell
+      title="Academic Calendar"
+      subtitle="Holidays, exams and phase schedule"
+      action={
+        <div className="flex gap-2">
+          <Button variant="outline" leftIcon={<Download size={15} />} onClick={() => hodApi.calendar.export()}>Export</Button>
+          <Button leftIcon={<CalendarPlus size={15} />} onClick={() => setEditing({ date: format(new Date(), 'yyyy-MM-dd'), type: 'OTHER' })}>Add Event</Button>
+        </div>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader
+              title={`${MONTHS[month]} ${year}`}
+              action={
+                <div className="flex gap-1">
+                  <button onClick={prevMonth} className="flex h-8 w-8 items-center justify-center rounded-sm border border-border hover:bg-surface-2"><ChevronLeft size={16} /></button>
+                  <button onClick={() => { setMonth(now.getMonth()); setYear(now.getFullYear()) }} className="rounded-sm border border-border px-3 text-xs font-medium hover:bg-surface-2">Today</button>
+                  <button onClick={nextMonth} className="flex h-8 w-8 items-center justify-center rounded-sm border border-border hover:bg-surface-2"><ChevronRight size={16} /></button>
+                </div>
+              }
+            />
+            <CardBody className="pt-0">
+              <CalendarGrid
+                events={events.data?.data ?? []}
+                year={year}
+                month={month}
+                onDayClick={(date) => setEditing({ date, type: 'OTHER' })}
+                onEventClick={(e) => setEditing(e)}
+              />
+            </CardBody>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader title="Upcoming Events" />
+            <CardBody className="space-y-2 pt-0">
+              {upcoming.data?.data.map((e) => (
+                <div key={e.id} className="flex items-center gap-2.5 border-b border-border-light py-2 last:border-0">
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${EVENT_TONE[e.type]}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-medium">{e.title}</div>
+                    <div className="text-xs text-text-muted">{format(new Date(e.date), 'EEE, MMM d')}</div>
+                  </div>
+                  <Badge tone="neutral">{e.type}</Badge>
+                </div>
+              ))}
+              {upcoming.data && upcoming.data.data.length === 0 && <p className="py-3 text-center text-xs text-text-muted">No upcoming events.</p>}
+            </CardBody>
+          </Card>
+          <Card>
+            <CardHeader title="Phase Timeline" />
+            <CardBody className="space-y-3 pt-0">
+              {timeline.data?.phases.map((p) => (
+                <div key={p.label} className="flex items-center gap-3">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ${p.isComplete ? 'bg-success' : 'bg-primary'}`}>{p.label}</div>
+                  <div className="flex-1 text-xs">
+                    <div className="font-medium text-text-primary">{format(new Date(p.startDate), 'MMM d')} – {format(new Date(p.endDate), 'MMM d')}</div>
+                    {p.examDate && <div className="text-text-muted">Exam: {format(new Date(p.examDate), 'MMM d')}</div>}
+                  </div>
+                  <Badge tone={p.isComplete ? 'success' : 'primary'}>{p.isComplete ? 'Done' : 'Upcoming'}</Badge>
+                </div>
+              ))}
+            </CardBody>
+          </Card>
+        </div>
+      </div>
+
+      {editing && (
+        <Modal
+          open
+          onClose={() => setEditing(null)}
+          title={editing.id ? 'Edit Event' : 'Add Event'}
+          footer={
+            <>
+              {editing.id && (
+                <Button variant="danger" leftIcon={<Trash2 size={15} />} onClick={() => del.mutate(editing.id!)} loading={del.isPending} className="mr-auto">Delete</Button>
+              )}
+              <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button onClick={() => save.mutate(editing)} loading={save.isPending} disabled={!editing.title || !editing.date}>Save</Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <Labeled label="Title *"><Input value={editing.title ?? ''} onChange={(e) => setEditing((s) => ({ ...s, title: e.target.value }))} /></Labeled>
+            <div className="grid grid-cols-2 gap-3">
+              <Labeled label="Date *"><Input type="date" value={editing.date?.slice(0, 10) ?? ''} onChange={(e) => setEditing((s) => ({ ...s, date: e.target.value }))} /></Labeled>
+              <Labeled label="Type">
+                <Select value={editing.type ?? 'OTHER'} onChange={(e) => setEditing((s) => ({ ...s, type: e.target.value as HodCalendarEvent['type'] }))} options={TYPES.map((t) => ({ value: t, label: t }))} />
+              </Labeled>
+            </div>
+            <Labeled label="Description"><Textarea value={editing.description ?? ''} onChange={(e) => setEditing((s) => ({ ...s, description: e.target.value }))} /></Labeled>
+          </div>
+        </Modal>
+      )}
+    </PageShell>
+  )
+}
+
+function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</label>{children}</div>
+}
