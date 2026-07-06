@@ -209,11 +209,11 @@ studentRouter.get("/announcements", asyncHandler(async (req, res) => {
 }));
 
 studentRouter.get("/calendar/events/upcoming", asyncHandler(async (req, res) => {
-  res.json(await portalService.facultyUpcomingEvents(Number(req.query.limit ?? 5)));
+  res.json(await portalService.upcomingEvents(req.user!.universityId, Number(req.query.limit ?? 5)));
 }));
 
 studentRouter.get("/calendar/events", asyncHandler(async (req, res) => {
-  res.json(await portalService.calendarEvents(req.query as Record<string, string | number | undefined>));
+  res.json(await portalService.calendarEvents(req.user!.universityId, req.query as Record<string, string | number | undefined>));
 }));
 
 studentRouter.get("/calendar/phase-timeline", asyncHandler(async (req, res) => {

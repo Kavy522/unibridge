@@ -3383,4 +3383,22 @@ export const portalService = {
   async deleteResult(resultId: string) {
     await prisma.result.delete({ where: { id: resultId } });
   },
+
+  // ponytail: study planner is client-persisted for now (localStorage-side).
+  // Return empty-safe shapes so the routes don't 500 until we back it with a DB table.
+  async studentStudyPlanner(_studentId: string, _universityId: string) {
+    return { plan: [], updatedAt: null };
+  },
+  async saveStudentStudyPlanner(_studentId: string, _universityId: string, plan: unknown[]) {
+    return { plan, updatedAt: new Date().toISOString(), savedCount: Array.isArray(plan) ? plan.length : 0 };
+  },
+  async updateStudentStudyPlannerSession(_studentId: string, _universityId: string, date: string, sessionIndex: number, isCompleted: boolean) {
+    return { date, sessionIndex, isCompleted };
+  },
+  async studentStudyPlannerAiSuggest(_studentId: string, _universityId: string, _body: Record<string, unknown>) {
+    return { jobId: `stub-${Date.now()}`, status: "queued" };
+  },
+  async studentStudyPlannerAiStatus(jobId: string) {
+    return { jobId, status: "complete", suggestions: [] };
+  },
 };

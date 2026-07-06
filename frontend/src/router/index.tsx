@@ -19,10 +19,38 @@ import HodPromotion from '@/pages/hod/PromotionPage'
 import HodCalendar from '@/pages/hod/CalendarPage'
 import HodSettings from '@/pages/hod/SettingsPage'
 
-// A placeholder factory keeps routes wired before real pages land.
-const stub = (title: string, subtitle?: string) => (
-  <PlaceholderPage title={title} subtitle={subtitle} />
-)
+// Faculty portal pages
+import FacDashboard from '@/pages/faculty/DashboardPage'
+import FacSchedule from '@/pages/faculty/SchedulePage'
+import FacStudents from '@/pages/faculty/StudentsPage'
+import FacAttendance from '@/pages/faculty/AttendancePage'
+import FacNotes from '@/pages/faculty/NotesPage'
+import FacQuizzes from '@/pages/faculty/QuizzesPage'
+import FacAnnouncements from '@/pages/faculty/AnnouncementsPage'
+import FacMentees from '@/pages/faculty/MenteesPage'
+import FacResults from '@/pages/faculty/ResultsPage'
+import FacCalendar from '@/pages/faculty/CalendarPage'
+import FacAnalytics from '@/pages/faculty/AnalyticsPage'
+import FacSettings from '@/pages/faculty/SettingsPage'
+
+// Student portal pages
+import StuDashboard from '@/pages/student/DashboardPage'
+import StuTimetable from '@/pages/student/TimetablePage'
+import StuResults from '@/pages/student/ResultsPage'
+import StuAttendance from '@/pages/student/AttendancePage'
+import StuNotes from '@/pages/student/NotesPage'
+import StuSelfNotes from '@/pages/student/SelfNotesPage'
+import StuQuizzes from '@/pages/student/QuizzesPage'
+import StuAnnouncements from '@/pages/student/AnnouncementsPage'
+import StuCalendar from '@/pages/student/CalendarPage'
+import StuMentorChat from '@/pages/student/MentorChatPage'
+import StuAI from '@/pages/student/AIAssistantPage'
+import StuPlanner from '@/pages/student/StudyPlannerPage'
+import StuLeaderboard from '@/pages/student/LeaderboardPage'
+import StuSettings from '@/pages/student/SettingsPage'
+
+// ponytail: no stubs left — every route is a real page now.
+void PlaceholderPage
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -47,34 +75,34 @@ export const router = createBrowserRouter([
           { path: '/hod/settings/:section?', element: <HodSettings /> },
 
           // ── Faculty ─────────────────────────
-          { path: '/faculty', element: stub('Dashboard', 'Faculty overview') },
-          { path: '/faculty/schedule', element: stub('My Schedule') },
-          { path: '/faculty/students', element: stub('Students') },
-          { path: '/faculty/attendance', element: stub('Attendance') },
-          { path: '/faculty/notes', element: stub('Notes') },
-          { path: '/faculty/quizzes', element: stub('Quizzes') },
-          { path: '/faculty/announcements', element: stub('Announcements') },
-          { path: '/faculty/mentees', element: stub('Mentees') },
-          { path: '/faculty/results', element: stub('Results') },
-          { path: '/faculty/calendar', element: stub('Calendar') },
-          { path: '/faculty/analytics', element: stub('Analytics') },
-          { path: '/faculty/settings/:section?', element: stub('Settings') },
+          { path: '/faculty', element: <FacDashboard /> },
+          { path: '/faculty/schedule', element: <FacSchedule /> },
+          { path: '/faculty/students', element: <FacStudents /> },
+          { path: '/faculty/attendance', element: <FacAttendance /> },
+          { path: '/faculty/notes', element: <FacNotes /> },
+          { path: '/faculty/quizzes', element: <FacQuizzes /> },
+          { path: '/faculty/announcements', element: <FacAnnouncements /> },
+          { path: '/faculty/mentees', element: <FacMentees /> },
+          { path: '/faculty/results', element: <FacResults /> },
+          { path: '/faculty/calendar', element: <FacCalendar /> },
+          { path: '/faculty/analytics', element: <FacAnalytics /> },
+          { path: '/faculty/settings/:section?', element: <FacSettings /> },
 
           // ── Student ─────────────────────────
-          { path: '/student', element: stub('Dashboard', 'Student overview') },
-          { path: '/student/timetable', element: stub('Timetable') },
-          { path: '/student/results', element: stub('Results') },
-          { path: '/student/attendance', element: stub('Attendance') },
-          { path: '/student/notes', element: stub('Notes') },
-          { path: '/student/self-notes', element: stub('My Notes') },
-          { path: '/student/quizzes', element: stub('Quizzes') },
-          { path: '/student/announcements', element: stub('Announcements') },
-          { path: '/student/calendar', element: stub('Calendar') },
-          { path: '/student/mentor', element: stub('Mentor Chat') },
-          { path: '/student/ai', element: stub('AI Assistant') },
-          { path: '/student/study-planner', element: stub('Study Planner') },
-          { path: '/student/leaderboard', element: stub('Leaderboard') },
-          { path: '/student/settings/:section?', element: stub('Settings') },
+          { path: '/student', element: <StuDashboard /> },
+          { path: '/student/timetable', element: <StuTimetable /> },
+          { path: '/student/results', element: <StuResults /> },
+          { path: '/student/attendance', element: <StuAttendance /> },
+          { path: '/student/notes', element: <StuNotes /> },
+          { path: '/student/self-notes', element: <StuSelfNotes /> },
+          { path: '/student/quizzes', element: <StuQuizzes /> },
+          { path: '/student/announcements', element: <StuAnnouncements /> },
+          { path: '/student/calendar', element: <StuCalendar /> },
+          { path: '/student/mentor', element: <StuMentorChat /> },
+          { path: '/student/ai', element: <StuAI /> },
+          { path: '/student/study-planner', element: <StuPlanner /> },
+          { path: '/student/leaderboard', element: <StuLeaderboard /> },
+          { path: '/student/settings/:section?', element: <StuSettings /> },
 
           // Root redirect + catch-all
           { path: '/', element: <RoleRouter /> },
