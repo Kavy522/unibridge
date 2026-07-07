@@ -209,3 +209,25 @@ hodRouter.delete("/timetable/:slotId", asyncHandler(async (req, res) => {
   await portalService.deleteTimetableSlot(str(req.params.slotId));
   res.status(204).send();
 }));
+
+// ── Announcements (HOD can post to ALL, YEAR_LEVEL, or BATCH) ──
+hodRouter.get("/announcements", asyncHandler(async (req, res) =>
+  res.json(await portalService.hodAnnouncements(req.user!.universityId, Number(req.query.page ?? 1), Number(req.query.limit ?? 30)))));
+hodRouter.post("/announcements", asyncHandler(async (req, res) =>
+  res.status(201).json(await portalService.createHodAnnouncement(req.user!.id, req.user!.universityId, req.body))));
+hodRouter.put("/announcements/:id", asyncHandler(async (req, res) =>
+  res.json(await portalService.updateFacultyAnnouncement(req.user!.id, str(req.params.id), req.body))));
+hodRouter.delete("/announcements/:id", asyncHandler(async (req, res) => {
+  await portalService.deleteFacultyAnnouncement(req.user!.id, str(req.params.id));
+  res.status(204).send();
+}));
+
+// ── Notifications ──
+hodRouter.get("/notifications", asyncHandler(async (req, res) =>
+  res.json(await portalService.notificationsList({ facultyId: req.user!.id }, Number(req.query.page ?? 1), Number(req.query.limit ?? 20), req.query.unreadOnly === "true"))));
+hodRouter.get("/notifications/unread-count", asyncHandler(async (req, res) =>
+  res.json(await portalService.notificationsUnreadCount({ facultyId: req.user!.id }))));
+hodRouter.patch("/notifications/:id/read", asyncHandler(async (req, res) =>
+  res.json(await portalService.markNotificationRead(str(req.params.id), { facultyId: req.user!.id }))));
+hodRouter.patch("/notifications/mark-all-read", asyncHandler(async (req, res) =>
+  res.json(await portalService.markAllNotificationsRead({ facultyId: req.user!.id }))));

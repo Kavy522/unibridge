@@ -333,3 +333,13 @@ studentRouter.get("/leaderboard", asyncHandler(async (req, res) => {
     ),
   );
 }));
+
+// ── Notifications ──
+studentRouter.get("/notifications", asyncHandler(async (req, res) =>
+  res.json(await portalService.notificationsList({ studentId: req.user!.id }, Number(req.query.page ?? 1), Number(req.query.limit ?? 20), req.query.unreadOnly === "true"))));
+studentRouter.get("/notifications/unread-count", asyncHandler(async (req, res) =>
+  res.json(await portalService.notificationsUnreadCount({ studentId: req.user!.id }))));
+studentRouter.patch("/notifications/:id/read", asyncHandler(async (req, res) =>
+  res.json(await portalService.markNotificationRead(str(req.params.id), { studentId: req.user!.id }))));
+studentRouter.patch("/notifications/mark-all-read", asyncHandler(async (req, res) =>
+  res.json(await portalService.markAllNotificationsRead({ studentId: req.user!.id }))));

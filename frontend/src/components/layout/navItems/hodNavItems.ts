@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
+  Megaphone,
   RefreshCw,
   Settings,
   UserCheck,
@@ -30,6 +31,7 @@ export const hodNavItems: NavSection[] = [
   {
     section: 'Management',
     items: [
+      { id: 'announcements', label: 'Announcements', path: '/hod/announcements', icon: Megaphone },
       { id: 'mentorship', label: 'Mentorship', path: '/hod/mentorship', icon: UserPlus },
       { id: 'analytics', label: 'Analytics', path: '/hod/analytics', icon: Activity },
       { id: 'promotion', label: 'Promotion', path: '/hod/promotion', icon: RefreshCw },

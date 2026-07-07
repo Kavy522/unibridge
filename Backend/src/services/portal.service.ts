@@ -2826,7 +2826,32 @@ export const portalService = {
     }
     const a = await prisma.announcement.create({ data: { universityId, facultyId, title: body.title, body: body.body, scope: body.scope as any, scopeValue: body.scopeValue } });
     const batch = body.scope === "BATCH" ? await prisma.batch.findUnique({ where: { id: body.scopeValue! }, select: { code: true } }) : null;
+    // Fan-out notifications to matching students
+    await this.fanOutAnnouncement(universityId, body.scope, body.scopeValue, body.title);
     return { id: a.id, title: a.title, scope: a.scope, scopeLabel: a.scope === "BATCH" && batch ? `Batch ${batch.code}` : a.scopeValue, createdAt: a.createdAt };
+  },
+
+  async fanOutAnnouncement(universityId: string, scope: string, scopeValue: string | undefined, title: string) {
+    let studentIds: string[] = [];
+    if (scope === "BATCH" && scopeValue) {
+      const enrs = await prisma.studentEnrollment.findMany({ where: { batchId: scopeValue, isCurrent: true }, select: { studentId: true } });
+      studentIds = enrs.map((e) => e.studentId);
+    } else if (scope === "YEAR_LEVEL" && scopeValue) {
+      const enrs = await prisma.studentEnrollment.findMany({ where: { yearLevel: scopeValue as YearLevel, isCurrent: true }, select: { studentId: true } });
+      studentIds = enrs.map((e) => e.studentId);
+    } else {
+      const students = await prisma.student.findMany({ where: { universityId, isActive: true, deletedAt: null }, select: { id: true } });
+      studentIds = students.map((s) => s.id);
+    }
+    if (studentIds.length === 0) return;
+    await this.notifyMany(
+      universityId,
+      studentIds.map((studentId) => ({ studentId })),
+      "ANNOUNCEMENT",
+      `New announcement: ${title}`,
+      "Tap to read.",
+      "/student/announcements",
+    );
   },
 
   async updateFacultyAnnouncement(facultyId: string, announcementId: string, body: { title?: string; body?: string }) {
@@ -3328,13 +3353,28 @@ export const portalService = {
   },
 
   async resultsPublish(phaseId: string, subjectId: string, batchId: string) {
-    const enrollments = await prisma.studentEnrollment.findMany({ where: { batchId, isCurrent: true }, select: { id: true } });
+    const enrollments = await prisma.studentEnrollment.findMany({ where: { batchId, isCurrent: true }, select: { id: true, studentId: true, semesterId: true } });
     const ids = enrollments.map((e) => e.id);
     const existing = await prisma.result.findMany({ where: { enrollmentId: { in: ids }, phaseId, subjectId } });
     if (existing.length < enrollments.length) throw new ApiError(400, "INCOMPLETE_RESULTS", "Not all students have marks entered.");
     if (existing.every((r) => r.isPublished)) throw new ApiError(409, "RESULTS_ALREADY_PUBLISHED", "Already published.");
     const publishedAt = new Date();
     await prisma.result.updateMany({ where: { id: { in: existing.map((r) => r.id) } }, data: { isPublished: true, publishedAt } });
+
+    // Fan-out notification to affected students
+    const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { code: true, name: true, universityId: true } });
+    const phase = await prisma.phase.findUnique({ where: { id: phaseId }, select: { label: true } });
+    if (subject && phase && enrollments.length > 0) {
+      await this.notifyMany(
+        subject.universityId,
+        enrollments.map((e) => ({ studentId: e.studentId })),
+        "RESULT_UPLOADED",
+        `${phase.label} Result Out — ${subject.code}`,
+        `Your ${phase.label} result for ${subject.name} has been published.`,
+        "/student/results",
+      );
+    }
+
     return { published: true, publishedAt, studentCount: existing.length };
   },
 
@@ -3400,6 +3440,93 @@ export const portalService = {
   },
   async studentStudyPlannerAiStatus(jobId: string) {
     return { jobId, status: "complete", suggestions: [] };
+  },
+
+  // ─── Notifications ────────────────────────────────────────
+  async notifyMany(universityId: string, targets: { facultyId?: string; studentId?: string }[], type: string, title: string, body: string, linkPath?: string) {
+    if (targets.length === 0) return { created: 0 };
+    await prisma.notification.createMany({
+      data: targets.map((t) => ({ universityId, facultyId: t.facultyId ?? null, studentId: t.studentId ?? null, type, title, body, linkPath: linkPath ?? null })),
+    });
+    return { created: targets.length };
+  },
+
+  async notifyStudentsInBatch(universityId: string, batchId: string, semesterId: string, type: string, title: string, body: string, linkPath?: string) {
+    const enrs = await prisma.studentEnrollment.findMany({
+      where: { batchId, semesterId, isCurrent: true },
+      select: { studentId: true },
+    });
+    return this.notifyMany(universityId, enrs.map((e) => ({ studentId: e.studentId })), type, title, body, linkPath);
+  },
+
+  async notificationsList(who: { facultyId?: string; studentId?: string }, page = 1, limit = 20, unreadOnly = false) {
+    const where = { ...(unreadOnly ? { isRead: false } : {}), ...(who.facultyId ? { facultyId: who.facultyId } : { studentId: who.studentId ?? undefined }) };
+    const total = await prisma.notification.count({ where });
+    const data = await prisma.notification.findMany({
+      where, orderBy: { createdAt: "desc" }, skip: (page - 1) * limit, take: limit,
+    });
+    return { data, ...buildPagination(page, limit, total) };
+  },
+
+  async notificationsUnreadCount(who: { facultyId?: string; studentId?: string }) {
+    const count = await prisma.notification.count({
+      where: { isRead: false, ...(who.facultyId ? { facultyId: who.facultyId } : { studentId: who.studentId ?? undefined }) },
+    });
+    return { count };
+  },
+
+  async markNotificationRead(id: string, who: { facultyId?: string; studentId?: string }) {
+    const n = await prisma.notification.findUnique({ where: { id } });
+    if (!n) throw new ApiError(404, "NOT_FOUND", "Notification not found.");
+    if ((who.facultyId && n.facultyId !== who.facultyId) || (who.studentId && n.studentId !== who.studentId)) {
+      throw new ApiError(403, "FORBIDDEN", "Not your notification.");
+    }
+    await prisma.notification.update({ where: { id }, data: { isRead: true } });
+    return { id, isRead: true };
+  },
+
+  async markAllNotificationsRead(who: { facultyId?: string; studentId?: string }) {
+    const r = await prisma.notification.updateMany({
+      where: { isRead: false, ...(who.facultyId ? { facultyId: who.facultyId } : { studentId: who.studentId ?? undefined }) },
+      data: { isRead: true },
+    });
+    return { updated: r.count };
+  },
+
+  // ─── HOD announcements ────────────────────────────────────
+  async hodAnnouncements(universityId: string, page = 1, limit = 30) {
+    const where = { universityId, deletedAt: null };
+    const total = await prisma.announcement.count({ where });
+    const rows = await prisma.announcement.findMany({
+      where, orderBy: { createdAt: "desc" }, skip: (page - 1) * limit, take: limit,
+      include: { faculty: { select: { name: true, isHod: true } } },
+    });
+    const batchCodeMap = new Map<string, string>();
+    for (const r of rows) {
+      if (r.scope === "BATCH" && r.scopeValue && !batchCodeMap.has(r.scopeValue)) {
+        const b = await prisma.batch.findUnique({ where: { id: r.scopeValue }, select: { code: true } });
+        batchCodeMap.set(r.scopeValue, b?.code ?? r.scopeValue);
+      }
+    }
+    return {
+      data: rows.map((r) => ({
+        id: r.id, title: r.title, body: r.body, scope: r.scope,
+        scopeLabel: r.scope === "BATCH" && r.scopeValue ? `Batch ${batchCodeMap.get(r.scopeValue)}` : r.scope === "YEAR_LEVEL" ? r.scopeValue : "All",
+        senderName: r.faculty.name, senderRole: r.faculty.isHod ? "HOD" : "FACULTY",
+        createdAt: r.createdAt,
+      })),
+      ...buildPagination(page, limit, total),
+    };
+  },
+
+  async createHodAnnouncement(facultyId: string, universityId: string, body: { title: string; body: string; scope: "BATCH" | "YEAR_LEVEL" | "ALL"; scopeValue?: string }) {
+    if (!body.title || !body.body) throw new ApiError(400, "VALIDATION_ERROR", "Title and body required.");
+    if (body.scope !== "ALL" && !body.scopeValue) throw new ApiError(400, "VALIDATION_ERROR", "scopeValue required for scoped announcements.");
+    const a = await prisma.announcement.create({
+      data: { universityId, facultyId, title: body.title, body: body.body, scope: body.scope as any, scopeValue: body.scopeValue ?? null },
+    });
+    await this.fanOutAnnouncement(universityId, body.scope, body.scopeValue, body.title);
+    return { id: a.id, title: a.title, scope: a.scope, createdAt: a.createdAt };
   },
 
   // ─── HOD: Timetable CRUD ───────────────────────────────────
@@ -3567,10 +3694,12 @@ export const portalService = {
     const enrIds = new Set(enrollments.map((e) => e.id));
 
     let inserted = 0, updated = 0;
+    const affectedEnrIds = new Set<string>();
     for (const lec of body.lectures) {
       if (!lec.slotId) continue; // ponytail: require slotId so paired lectures don't collide
       for (const [enrollmentId, isPresent] of Object.entries(lec.marks)) {
         if (!enrIds.has(enrollmentId)) continue;
+        affectedEnrIds.add(enrollmentId);
         const existing = await prisma.attendanceRecord.findFirst({
           where: { enrollmentId, lectureDate: day, slotId: lec.slotId },
         });
@@ -3588,6 +3717,24 @@ export const portalService = {
           inserted++;
         }
       }
+    }
+
+    // Fan-out: one "Today's attendance marked" notification per affected student
+    if (affectedEnrIds.size > 0) {
+      const affected = await prisma.studentEnrollment.findMany({
+        where: { id: { in: [...affectedEnrIds] } },
+        select: { studentId: true },
+      });
+      const faculty = await prisma.faculty.findUnique({ where: { id: facultyId }, select: { name: true } });
+      const dateLabel = day.toISOString().slice(0, 10);
+      await this.notifyMany(
+        universityId,
+        affected.map((e) => ({ studentId: e.studentId })),
+        "FACULTY_ATTENDANCE_LOG",
+        `Attendance marked (${dateLabel})`,
+        `${faculty?.name ?? "Your faculty"} marked attendance for your batch on ${dateLabel}.`,
+        "/student/attendance",
+      );
     }
     return { inserted, updated };
   },

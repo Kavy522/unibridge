@@ -1,6 +1,7 @@
-import { Bell, Menu, Search } from 'lucide-react'
+import { Menu, Search } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Input } from '@/components/ui/Input'
+import { NotificationBell } from '@/components/shared/NotificationBell'
 import { useUser } from '@/stores/authStore'
 import { useUiStore } from '@/stores/uiStore'
 
@@ -27,13 +28,7 @@ export function Topbar() {
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-2">
-        <button
-          aria-label="Notifications"
-          className="relative flex h-9 w-9 items-center justify-center rounded-sm text-text-secondary hover:bg-surface-2"
-        >
-          <Bell size={18} />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" />
-        </button>
+        <NotificationBell />
         <div className="flex items-center gap-2 pl-1">
           <Avatar name={user?.name} size={32} />
           <span className="hidden text-sm font-medium text-text-primary sm:block">

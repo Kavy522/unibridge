@@ -895,6 +895,25 @@ model AnnouncementRead {
   @@map("announcement_reads")
 }
 
+// Per-user event notifications (Result Out, Attendance Marked, etc.). Distinct from broadcast Announcements.
+model Notification {
+  id           String   @id @default(uuid())
+  universityId String
+  // Exactly one of these is set:
+  facultyId    String?
+  studentId    String?
+  type         String   // NotificationKey enum value as string (loose to allow custom types)
+  title        String
+  body         String
+  linkPath     String?  // frontend route to open when clicked
+  isRead       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([facultyId, isRead, createdAt])
+  @@index([studentId, isRead, createdAt])
+  @@map("notifications")
+}
+
 // ─────────────────────────────────────────────────────────────
 // 28. CHAT MESSAGE
 //     Real-time 1:1 messages between a mentor (faculty) and student.

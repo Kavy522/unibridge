@@ -426,3 +426,13 @@ facultyRouter.get("/analytics/mentees", asyncHandler(async (req, res) => {
 facultyRouter.get("/analytics/quiz-performance", asyncHandler(async (req, res) => {
   res.json(await portalService.facultyQuizPerformance(req.user!.id, String(req.query.quizId)));
 }));
+
+// ── Notifications ──
+facultyRouter.get("/notifications", asyncHandler(async (req, res) =>
+  res.json(await portalService.notificationsList({ facultyId: req.user!.id }, Number(req.query.page ?? 1), Number(req.query.limit ?? 20), req.query.unreadOnly === "true"))));
+facultyRouter.get("/notifications/unread-count", asyncHandler(async (req, res) =>
+  res.json(await portalService.notificationsUnreadCount({ facultyId: req.user!.id }))));
+facultyRouter.patch("/notifications/:id/read", asyncHandler(async (req, res) =>
+  res.json(await portalService.markNotificationRead(str(req.params.id), { facultyId: req.user!.id }))));
+facultyRouter.patch("/notifications/mark-all-read", asyncHandler(async (req, res) =>
+  res.json(await portalService.markAllNotificationsRead({ facultyId: req.user!.id }))));
