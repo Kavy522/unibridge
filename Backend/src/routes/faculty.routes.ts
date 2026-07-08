@@ -400,10 +400,6 @@ facultyRouter.post("/exam/assignments/:id/marks", asyncHandler(async (req, res) 
   res.json(await portalService.saveExamAssignmentMarks(req.user!.id, req.user!.universityId, str(req.params.id), req.body.marks ?? []));
 }));
 
-facultyRouter.post("/exam/publish", asyncHandler(async (req, res) => {
-  res.json(await portalService.examPublish(req.user!.id, req.user!.universityId, String(req.body.phaseId)));
-}));
-
 facultyRouter.get("/results/summary", asyncHandler(async (req, res) => {
   res.json(await portalService.facultyResultsSummary(req.user!.id, req.user!.universityId, req.query.semesterId as string | undefined));
 }));

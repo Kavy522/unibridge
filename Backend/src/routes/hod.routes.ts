@@ -91,6 +91,7 @@ hodRouter.post("/exam/coordinators", asyncHandler(async (req, res) => res.json(a
 hodRouter.delete("/exam/coordinators/:slot", asyncHandler(async (req, res) => res.json(await portalService.removeExamCoordinator(scopeFrom(req), Number(req.params.slot)))));
 hodRouter.get("/exam/context", asyncHandler(async (req, res) => res.json(await portalService.examContext(req.user!.universityId))));
 hodRouter.get("/exam/assignments", asyncHandler(async (req, res) => res.json(await portalService.examAssignments(req.user!.universityId, { phaseId: req.query.phaseId as string | undefined }))));
+hodRouter.post("/exam/publish", asyncHandler(async (req, res) => res.json(await portalService.examPublish(req.user!.universityId, String(req.body.phaseId)))));
 
 hodRouter.get("/results/upload-context", asyncHandler(async (req, res) => res.json(await portalService.resultsUploadContext(scopeFrom(req), req.query.semesterId as string | undefined))));
 hodRouter.get("/results/students", asyncHandler(async (req, res) => res.json(await portalService.resultsStudents(scopeFrom(req), String(req.query.semesterId), String(req.query.batchId), String(req.query.subjectId)))));

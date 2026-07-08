@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ClipboardCheck, Plus, Rocket, ShieldCheck, Trash2 } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { api, errorMessage } from '@/api/client'
 import { PageShell } from '@/components/shared/PageShell'
 import { Card } from '@/components/ui/Card'
@@ -42,7 +42,6 @@ const examApi = {
   students: (id: string) => api.get<AssignmentStudents>(`/faculty/exam/assignments/${id}/students`).then((r) => r.data),
   saveMarks: (id: string, marks: { enrollmentId: string; marks: number | null }[]) =>
     api.post(`/faculty/exam/assignments/${id}/marks`, { marks }).then((r) => r.data),
-  publish: (phaseId: string) => api.post<{ studentCount: number }>('/faculty/exam/publish', { phaseId }).then((r) => r.data),
 }
 
 const STATUS_TONE = { Pending: 'neutral', 'In Progress': 'warning', Complete: 'success', Published: 'purple' } as const
@@ -169,11 +168,9 @@ function MarksEntry({ assignmentId, onBack }: { assignmentId: string; onBack: ()
 function CoordinatorDesk() {
   const qc = useQueryClient()
   const ctx = useQuery({ queryKey: ['faculty', 'exam', 'context'], queryFn: examApi.context })
-  const all = useQuery({ queryKey: ['faculty', 'exam', 'all'], queryFn: () => examApi.assignments(true), refetchInterval: 10_000 })
+  const all = useQuery({ queryKey: ['faculty', 'exam', 'all'], queryFn: () => examApi.assignments(true), refetchInterval: 300_000 })
   const [form, setForm] = useState({ phaseId: '', subjectId: '', batchId: '', facultyId: '', fromEnrollmentNo: '', toEnrollmentNo: '' })
   const [deleteOf, setDeleteOf] = useState<ExamAssignment | null>(null)
-  const [publishPhase, setPublishPhase] = useState('')
-  const [confirmPublish, setConfirmPublish] = useState(false)
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['faculty', 'exam'] })
 
@@ -191,16 +188,8 @@ function CoordinatorDesk() {
     onSuccess: () => { toast.success('Assignment removed'); setDeleteOf(null); refresh() },
     onError: (e) => toast.error(errorMessage(e)),
   })
-  const publish = useMutation({
-    mutationFn: () => examApi.publish(publishPhase),
-    onSuccess: (r) => { toast.success(`Results pushed live for ${r.studentCount} students 🎉`); setConfirmPublish(false); refresh() },
-    onError: (e) => { toast.error(errorMessage(e)); setConfirmPublish(false) },
-  })
-
   const rows = all.data?.data ?? []
   const formReady = Object.values(form).every(Boolean)
-  const phaseRows = rows.filter((r) => r.phaseId === publishPhase)
-  const phaseComplete = phaseRows.length > 0 && phaseRows.every((r) => r.status === 'Complete' || r.status === 'Published')
 
   return (
     <>
@@ -230,21 +219,9 @@ function CoordinatorDesk() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">All Assignments — Status</h3>
-            <p className="text-xs text-text-muted">Auto-refreshes every 10 seconds</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Select value={publishPhase} onChange={(e) => setPublishPhase(e.target.value)} placeholder="Phase to publish"
-              options={(ctx.data?.phases ?? []).map((p) => ({ value: p.id, label: p.label }))} className="w-40" />
-            <Button leftIcon={<Rocket size={15} />} disabled={!publishPhase || !phaseComplete} onClick={() => setConfirmPublish(true)}>
-              Push Live
-            </Button>
+            <p className="text-xs text-text-muted">Auto-refreshes every 5 minutes · the HOD pushes completed phases live</p>
           </div>
         </div>
-        {publishPhase && !phaseComplete && (
-          <div className="border-b border-border bg-warning-light/40 px-4 py-2 text-xs text-warning">
-            {phaseRows.length === 0 ? 'No assignments exist for this phase yet.' : 'All assignments must be Complete before pushing live.'}
-          </div>
-        )}
         {rows.length === 0 ? (
           <EmptyState icon={<ClipboardCheck size={22} />} title="No assignments yet" description="Assign papers to faculty above." />
         ) : (
@@ -285,14 +262,6 @@ function CoordinatorDesk() {
         loading={del.isPending}
         onConfirm={() => deleteOf && del.mutate(deleteOf.id)}
         onCancel={() => setDeleteOf(null)}
-      />
-      <ConfirmDialog
-        open={confirmPublish}
-        title="Push results live?"
-        message="Every student in the assigned ranges will see their marks and get a notification. This cannot be undone."
-        loading={publish.isPending}
-        onConfirm={() => publish.mutate()}
-        onCancel={() => setConfirmPublish(false)}
       />
     </>
   )

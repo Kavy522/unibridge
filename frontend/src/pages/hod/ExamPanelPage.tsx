@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ShieldCheck, UserCheck, X } from 'lucide-react'
+import { Rocket, ShieldCheck, UserCheck, X } from 'lucide-react'
 import { api, errorMessage } from '@/api/client'
 import { PageShell } from '@/components/shared/PageShell'
 import { Card } from '@/components/ui/Card'
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Select } from '@/components/ui/Select'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Table, Th, Td, Tr } from '@/components/ui/Table'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 
@@ -27,6 +28,7 @@ const examApi = {
   remove: (slot: number) => api.delete(`/hod/exam/coordinators/${slot}`).then((r) => r.data),
   context: () => api.get<{ phases: { id: string; label: string }[] }>('/hod/exam/context').then((r) => r.data),
   assignments: (phaseId?: string) => api.get<{ data: ExamAssignment[] }>('/hod/exam/assignments', { params: { phaseId: phaseId || undefined } }).then((r) => r.data),
+  publish: (phaseId: string) => api.post<{ studentCount: number }>('/hod/exam/publish', { phaseId }).then((r) => r.data),
 }
 
 const STATUS_TONE = { Pending: 'neutral', 'In Progress': 'warning', Complete: 'success', Published: 'purple' } as const
@@ -34,17 +36,31 @@ const STATUS_TONE = { Pending: 'neutral', 'In Progress': 'warning', Complete: 's
 export default function ExamPanelPage() {
   const qc = useQueryClient()
   const [phaseFilter, setPhaseFilter] = useState('')
+  const [publishPhase, setPublishPhase] = useState('')
+  const [confirmPublish, setConfirmPublish] = useState(false)
 
   const coords = useQuery({ queryKey: ['hod', 'exam', 'coordinators'], queryFn: examApi.coordinators })
   const ctx = useQuery({ queryKey: ['hod', 'exam', 'context'], queryFn: examApi.context })
-  // live overwatcher — poll while the page is open
+  // overwatcher — refresh every 5 minutes while the page is open
   const tracking = useQuery({
     queryKey: ['hod', 'exam', 'assignments', phaseFilter],
     queryFn: () => examApi.assignments(phaseFilter),
-    refetchInterval: 10_000,
+    refetchInterval: 300_000,
+  })
+
+  const publish = useMutation({
+    mutationFn: () => examApi.publish(publishPhase),
+    onSuccess: (r) => {
+      toast.success(`Results pushed live for ${r.studentCount} students 🎉`)
+      setConfirmPublish(false)
+      qc.invalidateQueries({ queryKey: ['hod', 'exam'] })
+    },
+    onError: (e) => { toast.error(errorMessage(e)); setConfirmPublish(false) },
   })
 
   const rows = tracking.data?.data ?? []
+  const phaseRows = rows.filter((a) => a.phaseId === publishPhase)
+  const phaseComplete = phaseRows.length > 0 && phaseRows.every((a) => a.status === 'Complete' || a.status === 'Published')
 
   return (
     <PageShell title="Exam Panel" subtitle="Appoint exam coordinators and track paper checking live">
@@ -62,13 +78,25 @@ export default function ExamPanelPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">Result Tracking</h3>
-            <p className="text-xs text-text-muted">Auto-refreshes every 10 seconds</p>
+            <p className="text-xs text-text-muted">Auto-refreshes every 5 minutes · checker saves stay draft until you push live</p>
           </div>
-          <Select value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)} className="w-40">
-            <option value="">All phases</option>
-            {(ctx.data?.phases ?? []).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)} className="w-36">
+              <option value="">All phases</option>
+              {(ctx.data?.phases ?? []).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </Select>
+            <Select value={publishPhase} onChange={(e) => setPublishPhase(e.target.value)} placeholder="Phase to publish"
+              options={(ctx.data?.phases ?? []).map((p) => ({ value: p.id, label: p.label }))} className="w-40" />
+            <Button leftIcon={<Rocket size={15} />} disabled={!publishPhase || !phaseComplete} onClick={() => setConfirmPublish(true)}>
+              Push Live
+            </Button>
+          </div>
         </div>
+        {publishPhase && !phaseComplete && (
+          <div className="border-b border-border bg-warning-light/40 px-4 py-2 text-xs text-warning">
+            {phaseRows.length === 0 ? 'No assignments exist for this phase yet.' : 'All assignments must be Complete before pushing live.'}
+          </div>
+        )}
         {tracking.isLoading ? (
           <div className="p-4"><CardSkeleton height={160} /></div>
         ) : rows.length === 0 ? (
@@ -99,6 +127,15 @@ export default function ExamPanelPage() {
           </Table>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={confirmPublish}
+        title="Push results live?"
+        message="Every student in the assigned ranges will see their marks and get a notification. This cannot be undone."
+        loading={publish.isPending}
+        onConfirm={() => publish.mutate()}
+        onCancel={() => setConfirmPublish(false)}
+      />
     </PageShell>
   )
 }

@@ -3536,7 +3536,7 @@ export const portalService = {
     const facs = facIds.length ? await prisma.faculty.findMany({ where: { id: { in: facIds } }, select: { id: true, name: true, employeeId: true } }) : [];
     const byId = new Map(facs.map((f) => [f.id, f]));
     const options = await prisma.faculty.findMany({
-      where: { universityId: scope.universityId, isHod: false, isActive: true, deletedAt: null },
+      where: { universityId: scope.universityId, isHod: false, isDean: false, isActive: true, deletedAt: null },
       select: { id: true, name: true, employeeId: true }, orderBy: { name: "asc" },
     });
     return {
@@ -3587,7 +3587,7 @@ export const portalService = {
       prisma.phase.findMany({ where: { semesterId: sem.id }, orderBy: { number: "asc" } }),
       prisma.subject.findMany({ where: { semesterId: sem.id, deletedAt: null }, orderBy: { code: "asc" } }),
       prisma.batch.findMany({ where: { academicYearId: sem.academicYearId }, orderBy: { code: "asc" } }),
-      prisma.faculty.findMany({ where: { universityId, isHod: false, isActive: true, deletedAt: null }, select: { id: true, name: true, employeeId: true }, orderBy: { name: "asc" } }),
+      prisma.faculty.findMany({ where: { universityId, isHod: false, isDean: false, isActive: true, deletedAt: null }, select: { id: true, name: true, employeeId: true }, orderBy: { name: "asc" } }),
     ]);
     return {
       semesterId: sem.id,
@@ -3730,8 +3730,10 @@ export const portalService = {
     return { saved };
   },
 
-  async examPublish(coordId: string, universityId: string, phaseId: string) {
-    const { semester } = await requireExamCoordinator(coordId, universityId);
+  // Publishing is a HOD action: checker saves stay draft (visible in HOD tracking) until the HOD pushes live.
+  async examPublish(universityId: string, phaseId: string) {
+    const semester = await getActiveSemester(universityId);
+    if (!semester.id) throw new ApiError(400, "NO_ACTIVE_SEMESTER", "No active semester.");
     const assignments = await prisma.paperCheckAssignment.findMany({ where: { semesterId: semester.id, phaseId } });
     if (assignments.length === 0) throw new ApiError(400, "NO_ASSIGNMENTS", "No paper-check assignments exist for this phase.");
     const incomplete: string[] = [];
@@ -3752,9 +3754,9 @@ export const portalService = {
     const students = await prisma.studentEnrollment.findMany({ where: { id: { in: [...enrollmentIds] } }, select: { studentId: true } });
     await this.notifyMany(universityId, [...new Set(students.map((s) => s.studentId))].map((studentId) => ({ studentId })),
       "RESULT_UPLOADED", `${phase.label} Results are Live`, `Your ${phase.label} results have been published. Tap to view.`, "/student/results");
-    const hods = await prisma.faculty.findMany({ where: { universityId, isHod: true, deletedAt: null }, select: { id: true } });
-    await this.notifyMany(universityId, hods.map((h) => ({ facultyId: h.id })),
-      "RESULT_UPLOADED", `${phase.label} Results pushed live`, `Exam coordinator published ${phase.label} results for ${students.length} students.`, "/hod/exams");
+    const coordinators = await prisma.examCoordinator.findMany({ where: { semesterId: semester.id }, select: { facultyId: true } });
+    await this.notifyMany(universityId, coordinators.map((c) => ({ facultyId: c.facultyId })),
+      "RESULT_UPLOADED", `${phase.label} Results pushed live`, `The HOD published ${phase.label} results for ${students.length} students.`, "/faculty/exams");
     return { published: true, publishedAt, studentCount: students.length };
   },
 
