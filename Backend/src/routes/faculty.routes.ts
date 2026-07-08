@@ -426,7 +426,7 @@ facultyRouter.get("/results", asyncHandler(async (req, res) => {
 }));
 
 facultyRouter.get("/calendar/events/upcoming", asyncHandler(async (req, res) => {
-  res.json(await portalService.facultyUpcomingEvents(Number(req.query.limit ?? 6)));
+  res.json(await portalService.facultyUpcomingEvents(String(req.user!.universityId), Number(req.query.limit ?? 6)));
 }));
 
 facultyRouter.get("/calendar/events", asyncHandler(async (req, res) => {

@@ -1,0 +1,25 @@
+import {
+  Building2,
+  CalendarRange,
+  GitBranch,
+  GraduationCap,
+  LayoutDashboard,
+  UserCheck,
+  Users,
+} from 'lucide-react'
+import type { NavSection } from './types'
+
+export const universityNavItems: NavSection[] = [
+  {
+    section: 'University',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', path: '/university', icon: LayoutDashboard, end: true },
+      { id: 'years', label: 'Academic Years', path: '/university/years', icon: CalendarRange },
+      { id: 'branches', label: 'Branches', path: '/university/branches', icon: GitBranch },
+      { id: 'hods', label: 'HODs', path: '/university/hods', icon: UserCheck },
+      { id: 'faculty', label: 'Faculty', path: '/university/faculty', icon: Users },
+      { id: 'students', label: 'Students', path: '/university/students', icon: GraduationCap },
+      { id: 'settings', label: 'Settings', path: '/university/settings', icon: Building2 },
+    ],
+  },
+]

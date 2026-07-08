@@ -44,8 +44,9 @@ export const useIsFaculty = () =>
 export const useIsStudent = () => useAuthStore((s) => s.user?.role === 'STUDENT')
 
 /** The portal a user belongs to, used for redirects and nav selection. */
-export function portalOf(user: AuthUser | null): 'HOD' | 'FACULTY' | 'STUDENT' {
+export function portalOf(user: AuthUser | null): 'HOD' | 'FACULTY' | 'STUDENT' | 'UNIVERSITY' {
   if (!user) return 'STUDENT'
+  if (user.role === 'SUPER_ADMIN') return 'UNIVERSITY'
   if (user.role === 'STUDENT') return 'STUDENT'
   return user.isHod ? 'HOD' : 'FACULTY'
 }
@@ -53,6 +54,8 @@ export function portalOf(user: AuthUser | null): 'HOD' | 'FACULTY' | 'STUDENT' {
 /** Home path for a user's portal. */
 export function homePathOf(user: AuthUser | null): string {
   switch (portalOf(user)) {
+    case 'UNIVERSITY':
+      return '/university'
     case 'HOD':
       return '/hod'
     case 'FACULTY':

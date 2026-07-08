@@ -7,6 +7,7 @@ import { Topbar } from './Topbar'
 import { hodNavItems } from './navItems/hodNavItems'
 import { facultyNavItems } from './navItems/facultyNavItems'
 import { studentNavItems } from './navItems/studentNavItems'
+import { universityNavItems } from './navItems/universityNavItems'
 
 export default function AppShell() {
   const user = useUser()
@@ -15,7 +16,7 @@ export default function AppShell() {
   const setMobileSidebar = useUiStore((s) => s.setMobileSidebar)
 
   const sections =
-    role === 'STUDENT' ? studentNavItems : role === 'HOD' ? hodNavItems : facultyNavItems
+    role === 'UNIVERSITY' ? universityNavItems : role === 'STUDENT' ? studentNavItems : role === 'HOD' ? hodNavItems : facultyNavItems
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">

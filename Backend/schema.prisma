@@ -383,6 +383,7 @@ model Faculty {
   passwordHash    String
   department      String    // "IT", "CSE"
   isHod           Boolean   @default(false)
+  isDean          Boolean   @default(false)  // University (Dean) portal access
   mentorCode      String?   // 3-char, e.g. "SYD" — null for HOD
   profilePhotoUrl String?
   phone           String?

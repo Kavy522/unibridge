@@ -38,6 +38,15 @@ import FacCalendar from '@/pages/faculty/CalendarPage'
 import FacAnalytics from '@/pages/faculty/AnalyticsPage'
 import FacSettings from '@/pages/faculty/SettingsPage'
 
+// University (Dean) portal pages
+import UniDashboard from '@/pages/university/DashboardPage'
+import UniYears from '@/pages/university/YearsPage'
+import UniBranches from '@/pages/university/BranchesPage'
+import UniHods from '@/pages/university/HodsPage'
+import UniFaculty from '@/pages/university/FacultyPage'
+import UniStudents from '@/pages/university/StudentsPage'
+import UniSettings from '@/pages/university/SettingsPage'
+
 // Student portal pages
 import StuDashboard from '@/pages/student/DashboardPage'
 import StuTimetable from '@/pages/student/TimetablePage'
@@ -99,6 +108,15 @@ export const router = createBrowserRouter([
           { path: '/faculty/calendar', element: <FacCalendar /> },
           { path: '/faculty/analytics', element: <FacAnalytics /> },
           { path: '/faculty/settings/:section?', element: <FacSettings /> },
+
+          // ── University (Dean) ───────────────
+          { path: '/university', element: <UniDashboard /> },
+          { path: '/university/years', element: <UniYears /> },
+          { path: '/university/branches', element: <UniBranches /> },
+          { path: '/university/hods', element: <UniHods /> },
+          { path: '/university/faculty', element: <UniFaculty /> },
+          { path: '/university/students', element: <UniStudents /> },
+          { path: '/university/settings', element: <UniSettings /> },
 
           // ── Student ─────────────────────────
           { path: '/student', element: <StuDashboard /> },

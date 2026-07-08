@@ -1,5 +1,5 @@
-export type UserRole = 'FACULTY' | 'STUDENT'
-export type LoginRole = 'HOD' | 'FACULTY' | 'STUDENT'
+export type UserRole = 'FACULTY' | 'STUDENT' | 'SUPER_ADMIN'
+export type LoginRole = 'HOD' | 'FACULTY' | 'STUDENT' | 'SUPER_ADMIN'
 
 /**
  * Mirrors the `user` object returned by the backend `POST /auth/login`.

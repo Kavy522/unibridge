@@ -55,13 +55,23 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   }
 
   if (role === "SUPER_ADMIN") {
-    req.user = {
-      id: userId,
-      role: "SUPER_ADMIN",
-      isHod: false,
-      universityId: req.university.id,
-    };
-    return next();
+    // Dean tokens are verified against the isDean flag — any faculty id alone is not enough.
+    prisma.faculty
+      .findUnique({ where: { id: userId }, select: { isDean: true } })
+      .then((faculty) => {
+        if (!faculty?.isDean) {
+          return next(new ApiError(401, "AUTH_INVALID", "Invalid dean token."));
+        }
+        req.user = {
+          id: userId,
+          role: "SUPER_ADMIN",
+          isHod: false,
+          universityId: req.university!.id,
+        };
+        next();
+      })
+      .catch(next);
+    return;
   }
 
   return next(new ApiError(401, "AUTH_INVALID", "Unsupported authorization token role."));

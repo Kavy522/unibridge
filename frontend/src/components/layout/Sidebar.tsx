@@ -10,6 +10,7 @@ const roleLabel: Record<string, string> = {
   HOD: 'HOD Portal',
   FACULTY: 'Faculty Portal',
   STUDENT: 'Student Portal',
+  UNIVERSITY: 'University Portal',
 }
 
 export function Sidebar({
@@ -19,7 +20,7 @@ export function Sidebar({
   className,
 }: {
   sections: NavSection[]
-  role: 'HOD' | 'FACULTY' | 'STUDENT'
+  role: 'HOD' | 'FACULTY' | 'STUDENT' | 'UNIVERSITY'
   onNavigate?: () => void
   className?: string
 }) {

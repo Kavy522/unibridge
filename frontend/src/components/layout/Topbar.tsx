@@ -28,7 +28,7 @@ export function Topbar() {
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-2">
-        <NotificationBell />
+        {user?.role !== 'SUPER_ADMIN' && <NotificationBell />}
         <div className="flex items-center gap-2 pl-1">
           <Avatar name={user?.name} size={32} />
           <span className="hidden text-sm font-medium text-text-primary sm:block">

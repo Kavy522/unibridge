@@ -12,6 +12,7 @@ const ROLES: { key: LoginRole; label: string }[] = [
   { key: 'HOD', label: 'HOD' },
   { key: 'FACULTY', label: 'Faculty' },
   { key: 'STUDENT', label: 'Student' },
+  { key: 'SUPER_ADMIN', label: 'University' },
 ]
 
 export default function LoginPage() {

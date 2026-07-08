@@ -124,6 +124,14 @@ async function phaseById(phaseId: string) {
   return p;
 }
 
+// Universal branch rule: a student's branch must be one the university offers.
+// Single guard for every student create/update path.
+async function assertBranchAllowed(universityId: string, branch: string) {
+  const b = await prisma.universityBranch.findFirst({ where: { universityId, code: branch } });
+  if (!b) throw new ApiError(400, "BRANCH_NOT_ALLOWED", `Branch "${branch}" is not offered by this university. Add it in University → Branches first.`);
+  return b;
+}
+
 async function requireExamCoordinator(facultyId: string, universityId: string) {
   const semester = await getActiveSemester(universityId);
   const coordinator = semester.id
@@ -374,10 +382,11 @@ export const portalService = {
     }
     const faculty = await prisma.faculty.findUnique({
       where: { email },
-      select: { id: true, email: true, name: true, passwordHash: true, isActive: true, isHod: true, department: true, mentorCode: true, profilePhotoUrl: true, employeeId: true, universityId: true },
+      select: { id: true, email: true, name: true, passwordHash: true, isActive: true, isHod: true, isDean: true, department: true, mentorCode: true, profilePhotoUrl: true, employeeId: true, universityId: true },
     });
     if (!faculty || !matchesPassword(faculty.passwordHash, password)) throw new ApiError(401, "INVALID_CREDENTIALS", "Wrong email or password.");
     if (!faculty.isActive) throw new ApiError(403, "ACCOUNT_INACTIVE", "Account is inactive.");
+    if (role === "SUPER_ADMIN" && !faculty.isDean) throw new ApiError(403, "NOT_DEAN", "This account does not have University (Dean) access.");
     const resolvedRole: "HOD" | "FACULTY" | "SUPER_ADMIN" = role === "SUPER_ADMIN" ? "SUPER_ADMIN" : faculty.isHod ? "HOD" : "FACULTY";
     const refreshToken = `refresh:${resolvedRole}:${faculty.id}:${Date.now()}`;
     await prisma.refreshToken.create({ data: { token: refreshToken, facultyId: faculty.id, expiresAt: new Date("2026-12-31T23:59:59.000Z") } });
@@ -385,7 +394,7 @@ export const portalService = {
       accessToken: `${resolvedRole}:${faculty.id}`,
       refreshToken,
       expiresIn: 900,
-      user: { id: faculty.id, name: faculty.name, email: faculty.email, role: "FACULTY", isHod: faculty.isHod, universityId: faculty.universityId, department: faculty.department, mentorCode: faculty.mentorCode },
+      user: { id: faculty.id, name: faculty.name, email: faculty.email, role: resolvedRole === "SUPER_ADMIN" ? "SUPER_ADMIN" : "FACULTY", isHod: faculty.isHod, universityId: faculty.universityId, department: faculty.department, mentorCode: faculty.mentorCode },
     };
   },
 
@@ -398,6 +407,7 @@ export const portalService = {
       if (!body.enrollmentNo || !body.branch || !body.admissionYear) throw new ApiError(400, "VALIDATION_ERROR", "Student registration requires enrollmentNo, branch, and admissionYear.");
       const existing = await prisma.student.findFirst({ where: { OR: [{ email: body.email }, { enrollmentNo: body.enrollmentNo }] }, select: { id: true } });
       if (existing) throw new ApiError(409, "CONFLICT", "Student email or enrollment number already exists.");
+      await assertBranchAllowed(universityId, body.branch);
       const student = await prisma.student.create({
         data: { universityId, enrollmentNo: body.enrollmentNo, name: body.name, email: body.email, phone: body.phone ?? null, branch: body.branch, admissionYear: body.admissionYear, isActive: true, passwordHash: body.password, profilePhotoUrl: null },
       });
@@ -624,6 +634,7 @@ export const portalService = {
       try {
         let student = await prisma.student.findFirst({ where: { enrollmentNo } });
         if (!student) {
+          await assertBranchAllowed(universityId, String(record.branch ?? ""));
           student = await prisma.student.create({
             data: {
               universityId,
@@ -3130,6 +3141,7 @@ export const portalService = {
     const existing = await prisma.student.findFirst({ where: { OR: [{ email: body.email }, { enrollmentNo: body.enrollmentNo }] }, select: { id: true } });
     if (existing) throw new ApiError(409, "ENROLLMENT_NO_ALREADY_EXISTS", "Student email or enrollment number already exists.");
     const universityId = body.universityId ?? (await prisma.university.findFirst({ select: { id: true } }))!.id;
+    await assertBranchAllowed(universityId, body.branch);
     const temporaryPassword = `${body.enrollmentNo}@123`;
     const s = await prisma.student.create({
       data: {
@@ -3143,6 +3155,7 @@ export const portalService = {
 
   async updateStudent(_scope: Scope, enrollmentNo: string, body: { name?: string; email?: string; phone?: string; branch?: string }) {
     const s = await studentByEnrollmentNo(enrollmentNo);
+    if (body.branch) await assertBranchAllowed(s.universityId, body.branch);
     const updated = await prisma.student.update({
       where: { id: s.id },
       data: { name: body.name, email: body.email, phone: body.phone ?? undefined, branch: body.branch },
@@ -3743,6 +3756,249 @@ export const portalService = {
     await this.notifyMany(universityId, hods.map((h) => ({ facultyId: h.id })),
       "RESULT_UPLOADED", `${phase.label} Results pushed live`, `Exam coordinator published ${phase.label} results for ${students.length} students.`, "/hod/exams");
     return { published: true, publishedAt, studentCount: students.length };
+  },
+
+  // ─── University (Dean) portal ───────────────────────────────
+  async uniOverview(universityId: string) {
+    const uni = await getUniversity(universityId);
+    const activeYear = await prisma.academicYear.findFirst({ where: { universityId, status: "ACTIVE" } });
+    const activeSem = await prisma.semester.findFirst({ where: { universityId, status: "ACTIVE" } });
+    const [students, faculty, hods, branches, batches, enrollments] = await Promise.all([
+      prisma.student.count({ where: { universityId, deletedAt: null } }),
+      prisma.faculty.count({ where: { universityId, deletedAt: null, isDean: false } }),
+      prisma.faculty.count({ where: { universityId, deletedAt: null, isHod: true } }),
+      prisma.student.groupBy({ by: ["branch"], where: { universityId, deletedAt: null }, _count: true }),
+      activeYear ? prisma.batch.count({ where: { academicYearId: activeYear.id } }) : 0,
+      activeSem ? prisma.studentEnrollment.count({ where: { semesterId: activeSem.id, isCurrent: true } }) : 0,
+    ]);
+    const activity = await prisma.activityLog.findMany({
+      where: { universityId }, orderBy: { createdAt: "desc" }, take: 8,
+      include: { faculty: { select: { name: true } } },
+    });
+    return {
+      university: { name: uni.name, slug: uni.slug, plan: uni.plan },
+      activeYear: activeYear ? { id: activeYear.id, label: activeYear.label } : null,
+      activeSemester: activeSem ? { id: activeSem.id, label: activeSem.label, number: activeSem.number } : null,
+      counts: { students, faculty, hods, batches, currentEnrollments: enrollments },
+      branchBreakdown: branches.map((b) => ({ branch: b.branch, count: b._count })),
+      recentActivity: activity.map((a) => ({ id: a.id, type: a.type, title: a.title, description: a.description, by: a.faculty.name, createdAt: a.createdAt })),
+    };
+  },
+
+  async uniYears(universityId: string) {
+    const years = await prisma.academicYear.findMany({
+      where: { universityId }, orderBy: { label: "desc" },
+      include: { semesters: { orderBy: { number: "asc" } }, batches: { orderBy: { code: "asc" } } },
+    });
+    return {
+      data: await Promise.all(years.map(async (y) => ({
+        id: y.id, label: y.label, status: y.status, startDate: y.startDate, endDate: y.endDate,
+        semesters: y.semesters.map((s) => ({ id: s.id, number: s.number, label: s.label, yearLevel: s.yearLevel, status: s.status, startDate: s.startDate, endDate: s.endDate })),
+        batches: await Promise.all(y.batches.map(async (b) => ({
+          id: b.id, code: b.code, yearLevel: b.yearLevel,
+          studentCount: await prisma.studentEnrollment.count({ where: { batchId: b.id, isCurrent: true } }),
+        }))),
+      }))),
+    };
+  },
+
+  async uniCreateYear(universityId: string, body: { label: string; startDate: string; endDate: string }) {
+    if (!body.label || !body.startDate || !body.endDate) throw new ApiError(400, "VALIDATION_ERROR", "label, startDate, endDate required.");
+    const exists = await prisma.academicYear.findFirst({ where: { universityId, label: body.label } });
+    if (exists) throw new ApiError(409, "CONFLICT", "Academic year already exists.");
+    const y = await prisma.academicYear.create({
+      data: { universityId, label: body.label, status: "DRAFT", startDate: new Date(body.startDate), endDate: new Date(body.endDate) },
+    });
+    return { id: y.id, label: y.label, status: y.status };
+  },
+
+  async uniActivateYear(universityId: string, yearId: string) {
+    const y = await prisma.academicYear.findFirst({ where: { id: yearId, universityId } });
+    if (!y) throw new ApiError(404, "NOT_FOUND", "Academic year not found.");
+    await prisma.academicYear.updateMany({ where: { universityId, status: "ACTIVE", NOT: { id: yearId } }, data: { status: "ARCHIVED" } });
+    await prisma.academicYear.update({ where: { id: yearId }, data: { status: "ACTIVE" } });
+    return { id: yearId, status: "ACTIVE" };
+  },
+
+  async uniCreateSemester(universityId: string, body: { academicYearId: string; number: number; startDate: string; endDate: string }) {
+    const n = Number(body.number);
+    if (!body.academicYearId || !n || n < 1 || n > 8 || !body.startDate || !body.endDate) {
+      throw new ApiError(400, "VALIDATION_ERROR", "academicYearId, number (1–8), startDate, endDate required.");
+    }
+    const yearLevel = n <= 2 ? "FY" : n <= 4 ? "SY" : n <= 6 ? "TY" : "FINAL";
+    const start = new Date(body.startDate);
+    const end = new Date(body.endDate);
+    const sem = await prisma.semester.create({
+      data: { universityId, academicYearId: body.academicYearId, number: n, label: `Semester ${n}`, yearLevel, status: "UPCOMING", startDate: start, endDate: end },
+    });
+    // 4 phases (T1–T4) split evenly across the semester
+    const span = (end.getTime() - start.getTime()) / 4;
+    await prisma.phase.createMany({
+      data: [1, 2, 3, 4].map((i) => ({
+        semesterId: sem.id, label: `T${i}`, number: i,
+        startDate: new Date(start.getTime() + span * (i - 1)),
+        endDate: new Date(start.getTime() + span * i),
+      })),
+    });
+    return { id: sem.id, label: sem.label, yearLevel };
+  },
+
+  async uniActivateSemester(universityId: string, semesterId: string) {
+    const s = await prisma.semester.findFirst({ where: { id: semesterId, universityId } });
+    if (!s) throw new ApiError(404, "NOT_FOUND", "Semester not found.");
+    await prisma.semester.updateMany({ where: { universityId, status: "ACTIVE", NOT: { id: semesterId } }, data: { status: "COMPLETE" } });
+    await prisma.semester.update({ where: { id: semesterId }, data: { status: "ACTIVE" } });
+    return { id: semesterId, status: "ACTIVE" };
+  },
+
+  async uniCreateBatch(universityId: string, body: { academicYearId: string; code: string; yearLevel: string }) {
+    if (!body.academicYearId || !body.code || !body.yearLevel) throw new ApiError(400, "VALIDATION_ERROR", "academicYearId, code, yearLevel required.");
+    const exists = await prisma.batch.findFirst({ where: { academicYearId: body.academicYearId, code: body.code } });
+    if (exists) throw new ApiError(409, "CONFLICT", "Batch code already exists in this year.");
+    const b = await prisma.batch.create({
+      data: { universityId, academicYearId: body.academicYearId, code: body.code, yearLevel: body.yearLevel as any },
+    });
+    return { id: b.id, code: b.code };
+  },
+
+  async uniHods(universityId: string) {
+    const activeSem = await prisma.semester.findFirst({ where: { universityId, status: "ACTIVE" } });
+    const hods = await prisma.faculty.findMany({
+      where: { universityId, isHod: true, deletedAt: null }, orderBy: { name: "asc" },
+      include: { hodBatchScopes: { include: { batch: { select: { id: true, code: true } }, semester: { select: { id: true, label: true } } } } },
+    });
+    const batches = activeSem
+      ? await prisma.batch.findMany({ where: { academicYearId: activeSem.academicYearId }, orderBy: { code: "asc" }, include: { hodScope: true } })
+      : [];
+    const options = await prisma.faculty.findMany({
+      where: { universityId, isHod: false, isDean: false, isActive: true, deletedAt: null },
+      select: { id: true, name: true, employeeId: true, department: true }, orderBy: { name: "asc" },
+    });
+    return {
+      activeSemester: activeSem ? { id: activeSem.id, label: activeSem.label } : null,
+      hods: hods.map((h) => ({
+        id: h.id, name: h.name, email: h.email, employeeId: h.employeeId, department: h.department, isActive: h.isActive,
+        scopes: h.hodBatchScopes.map((s) => ({ batchId: s.batch.id, batchCode: s.batch.code, semesterLabel: s.semester.label })),
+      })),
+      batches: batches.map((b) => ({ id: b.id, code: b.code, yearLevel: b.yearLevel, ownedBy: b.hodScope?.facultyId ?? null })),
+      facultyOptions: options,
+    };
+  },
+
+  async uniSetHod(universityId: string, facultyId: string, isHod: boolean) {
+    const f = await prisma.faculty.findFirst({ where: { id: facultyId, universityId, deletedAt: null } });
+    if (!f) throw new ApiError(404, "NOT_FOUND", "Faculty not found.");
+    if (!isHod) {
+      const scopes = await prisma.hodBatchScope.count({ where: { facultyId } });
+      if (scopes > 0) throw new ApiError(409, "HAS_SCOPES", "Remove this HOD's batch assignments first.");
+    }
+    await prisma.faculty.update({ where: { id: facultyId }, data: { isHod } });
+    return { id: facultyId, isHod };
+  },
+
+  async uniAssignHodScope(universityId: string, facultyId: string, batchId: string) {
+    const activeSem = await prisma.semester.findFirst({ where: { universityId, status: "ACTIVE" } });
+    if (!activeSem) throw new ApiError(400, "NO_ACTIVE_SEMESTER", "No active semester.");
+    const hod = await prisma.faculty.findFirst({ where: { id: facultyId, universityId, isHod: true, deletedAt: null } });
+    if (!hod) throw new ApiError(404, "HOD_NOT_FOUND", "Faculty is not a HOD.");
+    const batch = await batchById(batchId);
+    // batchId is @unique on HodBatchScope — one owner per batch
+    await prisma.hodBatchScope.upsert({
+      where: { batchId },
+      update: { facultyId, semesterId: activeSem.id, academicYearId: batch.academicYearId },
+      create: { facultyId, batchId, semesterId: activeSem.id, academicYearId: batch.academicYearId },
+    });
+    return { batchId, facultyId, batchCode: batch.code };
+  },
+
+  async uniRemoveHodScope(_universityId: string, batchId: string) {
+    await prisma.hodBatchScope.deleteMany({ where: { batchId } });
+    return { removed: true };
+  },
+
+  async uniFaculty(universityId: string, search?: string, page = 1, limit = 20) {
+    const where = {
+      universityId, deletedAt: null, isDean: false,
+      ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" as const } }, { email: { contains: search, mode: "insensitive" as const } }, { employeeId: { contains: search, mode: "insensitive" as const } }] } : {}),
+    };
+    const total = await prisma.faculty.count({ where });
+    const rows = await prisma.faculty.findMany({ where, orderBy: { name: "asc" }, skip: (page - 1) * limit, take: limit });
+    return {
+      data: rows.map((f) => ({ id: f.id, name: f.name, email: f.email, employeeId: f.employeeId, department: f.department, isHod: f.isHod, mentorCode: f.mentorCode, isActive: f.isActive })),
+      ...buildPagination(page, limit, total),
+    };
+  },
+
+  async uniSetFacultyActive(universityId: string, facultyId: string, isActive: boolean) {
+    const f = await prisma.faculty.findFirst({ where: { id: facultyId, universityId } });
+    if (!f) throw new ApiError(404, "NOT_FOUND", "Faculty not found.");
+    await prisma.faculty.update({ where: { id: facultyId }, data: { isActive } });
+    return { id: facultyId, isActive };
+  },
+
+  async uniStudents(universityId: string, opts: { search?: string; branch?: string; page?: number; limit?: number }) {
+    const page = opts.page ?? 1, limit = opts.limit ?? 20;
+    const where = {
+      universityId, deletedAt: null,
+      ...(opts.branch ? { branch: opts.branch } : {}),
+      ...(opts.search ? { OR: [{ name: { contains: opts.search, mode: "insensitive" as const } }, { enrollmentNo: { contains: opts.search } }, { email: { contains: opts.search, mode: "insensitive" as const } }] } : {}),
+    };
+    const total = await prisma.student.count({ where });
+    const rows = await prisma.student.findMany({
+      where, orderBy: { enrollmentNo: "asc" }, skip: (page - 1) * limit, take: limit,
+      include: { enrollments: { where: { isCurrent: true }, include: { batch: { select: { code: true } }, semester: { select: { label: true } } }, take: 1 } },
+    });
+    return {
+      data: rows.map((s) => ({
+        id: s.id, enrollmentNo: s.enrollmentNo, name: s.name, email: s.email, branch: s.branch, admissionYear: s.admissionYear, isActive: s.isActive,
+        batchCode: s.enrollments[0]?.batch.code ?? null, semesterLabel: s.enrollments[0]?.semester.label ?? null, rollNo: s.enrollments[0]?.rollNo ?? null,
+      })),
+      ...buildPagination(page, limit, total),
+    };
+  },
+
+  async uniSetStudentActive(universityId: string, studentId: string, isActive: boolean) {
+    const s = await prisma.student.findFirst({ where: { id: studentId, universityId } });
+    if (!s) throw new ApiError(404, "NOT_FOUND", "Student not found.");
+    await prisma.student.update({ where: { id: studentId }, data: { isActive } });
+    return { id: studentId, isActive };
+  },
+
+  async uniSettings(universityId: string) {
+    const u = await getUniversity(universityId);
+    return { id: u.id, name: u.name, slug: u.slug, logoUrl: u.logoUrl, website: u.website, contactEmail: u.contactEmail, address: u.address, plan: u.plan };
+  },
+
+  async uniBranches(universityId: string) {
+    const branches = await prisma.universityBranch.findMany({ where: { universityId }, orderBy: { code: "asc" } });
+    const counts = await prisma.student.groupBy({ by: ["branch"], where: { universityId, deletedAt: null }, _count: true });
+    const countByCode = new Map(counts.map((c) => [c.branch, c._count]));
+    return {
+      data: branches.map((b) => ({ id: b.id, code: b.code, name: b.name, studentCount: countByCode.get(b.code) ?? 0 })),
+      // students whose branch code has no UniversityBranch row (pre-rule data)
+      orphanBranches: counts.filter((c) => !branches.some((b) => b.code === c.branch)).map((c) => ({ branch: c.branch, count: c._count })),
+    };
+  },
+
+  async uniDeleteBranch(universityId: string, id: string) {
+    const b = await prisma.universityBranch.findFirst({ where: { id, universityId } });
+    if (!b) throw new ApiError(404, "NOT_FOUND", "Branch not found.");
+    const inUse = await prisma.student.count({ where: { universityId, branch: b.code, deletedAt: null } });
+    if (inUse > 0) throw new ApiError(409, "BRANCH_IN_USE", `${inUse} students belong to ${b.code} — it cannot be deleted.`);
+    await prisma.universityBranch.delete({ where: { id } });
+    return { deleted: true };
+  },
+
+  async uniUpdateSettings(universityId: string, body: { name?: string; logoUrl?: string; website?: string; contactEmail?: string; address?: string }) {
+    const u = await prisma.university.update({
+      where: { id: universityId },
+      data: {
+        ...(body.name ? { name: body.name } : {}),
+        logoUrl: body.logoUrl ?? undefined, website: body.website ?? undefined,
+        contactEmail: body.contactEmail ?? undefined, address: body.address ?? undefined,
+      },
+    });
+    return { id: u.id, name: u.name };
   },
 
   // ─── HOD announcements ────────────────────────────────────
