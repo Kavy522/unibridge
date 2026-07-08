@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
+// Precedence: real env vars > .env.production (committed, no secrets) > .env (local-only).
+// dotenv never overrides already-set vars, so loading in this order gives that chain.
+if (process.env.NODE_ENV === "production") dotenv.config({ path: ".env.production" });
 dotenv.config();
 
 const envSchema = z.object({
