@@ -239,7 +239,6 @@ model Semester {
   updatedAt      DateTime       @updatedAt
 
   academicYear    AcademicYear        @relation(fields: [academicYearId], references: [id])
-  subjects        Subject[]
   phases          Phase[]
   enrollments     StudentEnrollment[]
   timetableSlots  TimetableSlot[]
@@ -343,20 +342,22 @@ model HodBatchScope {
 //    Subjects link to batches via FacultyBatchAssignment.
 // ─────────────────────────────────────────────────────────────
 
+// ponytail: subjects are a university-global catalog keyed by SEMESTER NUMBER (1–8), added once
+// and shared across every batch/year. No per-academic-year rows. Editing soft-deletes the old row
+// and creates a new one so past results/attendance keep pointing at the original subject.
 model Subject {
-  id           String      @id @default(uuid())
-  universityId String
-  semesterId   String
-  code         String      // "COA", "DM", "TOC"
-  name         String      // "Computer Organization & Architecture"
-  credits      Int         @default(4)
-  type         SubjectType @default(THEORY)
-  branch       String?     // "IT", "CSE" — subjects belong to a year+semester+branch
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  deletedAt    DateTime?   // soft delete — blocked if has results/attendance
+  id             String      @id @default(uuid())
+  universityId   String
+  semesterNumber Int         // 1..8 — the semester this subject belongs to, for all batches/years
+  code           String      // "COA", "DM", "TOC"
+  name           String      // "Computer Organization & Architecture"
+  credits        Int         @default(4)
+  type           SubjectType @default(THEORY)
+  branch         String?     // optional branch tag
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?   // soft delete — old row retained so dependent data stays consistent
 
-  semester           Semester               @relation(fields: [semesterId], references: [id])
   results            Result[]
   notes              Note[]
   attendanceRecords  AttendanceRecord[]
@@ -364,8 +365,8 @@ model Subject {
   facultyAssignments FacultyBatchAssignment[]
   pyqFiles           PYQFile[]
 
-  @@unique([semesterId, code])
-  @@index([semesterId])
+  @@unique([universityId, semesterNumber, code])
+  @@index([universityId, semesterNumber])
   @@map("subjects")
 }
 

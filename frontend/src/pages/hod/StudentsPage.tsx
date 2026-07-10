@@ -22,7 +22,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { StudentProfileModal } from './students/StudentProfileModal'
+import { StudentProfileModal } from '@/components/shared/StudentProfileModal'
 import { AddStudentModal } from './students/AddStudentModal'
 
 const STATUSES = ['ACTIVE', 'AT_RISK', 'INACTIVE']
@@ -170,7 +170,15 @@ export default function StudentsPage() {
         )}
       </Card>
 
-      {profileOf && <StudentProfileModal enrollmentNo={profileOf} onClose={() => setProfileOf(null)} />}
+      {profileOf && (
+        <StudentProfileModal
+          enrollmentNo={profileOf}
+          onClose={() => setProfileOf(null)}
+          getFn={(e) => hodApi.students.get(e) as any}
+          historyFn={(e) => hodApi.students.history(e) as any}
+          queryKey="hod"
+        />
+      )}
 
       <AddStudentModal
         open={showAdd}

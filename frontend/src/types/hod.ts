@@ -7,6 +7,7 @@ export interface HodScope {
   batches: { id: string; code: string; yearLevel: YearLevel; studentCount: number }[]
   totalStudents: number
   totalFaculty: number
+  needsOnboarding?: boolean
 }
 
 // ── Dashboard ──────────────────────────────────────────

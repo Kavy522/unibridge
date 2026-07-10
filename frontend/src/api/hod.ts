@@ -20,6 +20,21 @@ export const hodApi = {
   scope: (semesterId?: string) =>
     api.get<T.HodScope>('/hod/my-scope', { params: { semesterId } }).then((r) => r.data),
 
+  onboarding: {
+    branches: () =>
+      api.get<{ data: { id: string; code: string; name: string }[] }>('/hod/onboarding/branches').then((r) => r.data),
+    faculty: () =>
+      api.get<{ data: { id: string; name: string; employeeId: string; mentorCode: string | null; year: string | null }[]; year: string | null }>('/hod/onboarding/faculty').then((r) => r.data),
+    complete: (body: { initial: string; branches: string[]; batchCount: number }) =>
+      api.post<{ batches: { id: string; code: string }[]; branches: string[]; initial: string; semester: string }>('/hod/onboarding/complete', body).then((r) => r.data),
+  },
+
+  batchHistory: () =>
+    api.get<{ data: { batchId: string; batchCode: string; yearLevel: string; sectionTag: string | null; semesterLabel: string; semesterNumber: number; academicYear: string; isActive: boolean; studentCount: number }[] }>('/hod/batches/history').then((r) => r.data),
+
+  resetSemester: () =>
+    api.post<{ batchesRemoved: number; studentsRemoved: number }>('/hod/reset-semester').then((r) => r.data),
+
   // ── Dashboard ──
   dashboard: {
     summary: (params?: Params) =>

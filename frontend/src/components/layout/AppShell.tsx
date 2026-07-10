@@ -1,13 +1,16 @@
 import { Outlet } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { portalOf, useUser } from '@/stores/authStore'
 import { useUiStore } from '@/stores/uiStore'
+import { hodApi } from '@/api/hod'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { hodNavItems } from './navItems/hodNavItems'
 import { facultyNavItems } from './navItems/facultyNavItems'
 import { studentNavItems } from './navItems/studentNavItems'
 import { universityNavItems } from './navItems/universityNavItems'
+import { HodOnboardingModal } from '@/pages/hod/HodOnboardingModal'
 
 export default function AppShell() {
   const user = useUser()
@@ -17,6 +20,9 @@ export default function AppShell() {
 
   const sections =
     role === 'UNIVERSITY' ? universityNavItems : role === 'STUDENT' ? studentNavItems : role === 'HOD' ? hodNavItems : facultyNavItems
+
+  const hodScope = useQuery({ queryKey: ['hod', 'scope', 'active'], queryFn: () => hodApi.scope(), enabled: role === 'HOD' })
+  const showOnboarding = role === 'HOD' && hodScope.data?.needsOnboarding
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
@@ -48,6 +54,12 @@ export default function AppShell() {
           <Outlet />
         </main>
       </div>
+      {showOnboarding && hodScope.data && (
+        <HodOnboardingModal
+          activeSemesterNumber={hodScope.data.activeSemester.number}
+          activeSemesterId={hodScope.data.activeSemester.id}
+        />
+      )}
     </div>
   )
 }
