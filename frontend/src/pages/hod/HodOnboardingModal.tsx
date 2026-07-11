@@ -21,19 +21,21 @@ const STEPS: { key: Step; label: string }[] = [
 
 // ponytail: fires on first HOD login into a year-start sem (1/3/5/7) with no batches yet.
 // Wizard: batches → students → faculty roster → timetable (auto-assigns faculty to batches).
-export function HodOnboardingModal({ activeSemesterId }: { activeSemesterNumber: number; activeSemesterId: string }) {
+export function HodOnboardingModal({ activeSemesterId, onFinish }: { activeSemesterNumber: number; activeSemesterId: string; onFinish: () => void }) {
   const qc = useQueryClient()
   const [step, setStep] = useState<Step>('batches')
-  const refreshScope = () => qc.invalidateQueries({ queryKey: ['hod', 'scope'] })
+  // ponytail: DON'T refetch scope mid-wizard — the parent latches wizardOpen, but avoiding
+  // extra refetches keeps the UI stable while the user advances through steps.
+  const finish = () => { qc.invalidateQueries({ queryKey: ['hod'] }); onFinish() }
 
   return (
     <Modal open onClose={() => { /* blocks until finished */ }} title="Set up your semester" size="lg">
       <Stepper current={step} />
-      {step === 'batches' && <BatchesStep onDone={() => { refreshScope(); setStep('students') }} />}
+      {step === 'batches' && <BatchesStep onDone={() => setStep('students')} />}
       {step === 'students' && <StudentsStep semesterId={activeSemesterId} onNext={() => setStep('faculty')} />}
       {step === 'faculty' && <FacultyStep onNext={() => setStep('timetable')} />}
-      {step === 'timetable' && <TimetableStep semesterId={activeSemesterId} onDone={() => { refreshScope(); setStep('done') }} />}
-      {step === 'done' && <DoneStep />}
+      {step === 'timetable' && <TimetableStep semesterId={activeSemesterId} onDone={() => setStep('done')} />}
+      {step === 'done' && <DoneStep onFinish={finish} />}
     </Modal>
   )
 }
@@ -237,7 +239,7 @@ function TimetableStep({ semesterId, onDone }: { semesterId: string; onDone: () 
   )
 }
 
-function DoneStep() {
+function DoneStep({ onFinish }: { onFinish: () => void }) {
   return (
     <div className="space-y-4 py-4 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-success"><Check size={26} /></div>
@@ -245,7 +247,7 @@ function DoneStep() {
         <h3 className="text-base font-bold text-text-primary">Semester ready</h3>
         <p className="mt-1 text-sm text-text-secondary">Batches, students, faculty and timetable are set up.</p>
       </div>
-      <Button onClick={() => { window.location.href = '/hod' }}>Go to Dashboard</Button>
+      <Button onClick={onFinish}>Go to Dashboard</Button>
     </div>
   )
 }

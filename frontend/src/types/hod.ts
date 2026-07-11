@@ -63,6 +63,7 @@ export interface StudentRow {
   attendancePct?: number | null
   avgMarksPct?: number | null
   status: 'ACTIVE' | 'AT_RISK' | 'INACTIVE'
+  graduationStatus?: 'ACTIVE' | 'PASS_OUT' | 'DETAINED'
 }
 export interface StudentDetail {
   enrollmentNo: string

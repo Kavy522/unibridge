@@ -26,6 +26,7 @@ adminRouter.post("/batches/bulk", asyncHandler(async (req, res) => res.json(awai
 
 // HODs
 adminRouter.get("/hods", asyncHandler(async (req, res) => res.json(await portalService.uniHods(req.user!.universityId))));
+adminRouter.get("/promotion-dashboard", asyncHandler(async (req, res) => res.json(await portalService.promotionDashboard(req.user!.universityId))));
 adminRouter.post("/hods/:facultyId/toggle", asyncHandler(async (req, res) => res.json(await portalService.uniSetHod(req.user!.universityId, str(req.params.facultyId), Boolean(req.body.isHod)))));
 adminRouter.post("/hod-scope", asyncHandler(async (req, res) => res.json(await portalService.uniAssignHodScope(req.user!.universityId, String(req.body.facultyId), String(req.body.batchId)))));
 adminRouter.delete("/hod-scope/:batchId", asyncHandler(async (req, res) => res.json(await portalService.uniRemoveHodScope(req.user!.universityId, str(req.params.batchId)))));

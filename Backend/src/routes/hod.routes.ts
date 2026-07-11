@@ -41,7 +41,9 @@ hodRouter.get("/onboarding/faculty", asyncHandler(async (req, res) => res.json(a
 hodRouter.post("/faculty/pool", asyncHandler(async (req, res) => res.json(await portalService.hodSaveFacultyPool(scopeFrom(req), req.body))));
 hodRouter.get("/faculty/pool", asyncHandler(async (req, res) => res.json(await portalService.hodFacultyPool(scopeFrom(req)))));
 hodRouter.get("/batches/history", asyncHandler(async (req, res) => res.json(await portalService.hodBatchHistory(scopeFrom(req)))));
+hodRouter.get("/history/semesters", asyncHandler(async (req, res) => res.json(await portalService.hodHistorySemesters(scopeFrom(req)))));
 hodRouter.post("/reset-semester", asyncHandler(async (req, res) => res.json(await portalService.hodResetSemester(scopeFrom(req)))));
+hodRouter.post("/graduate", asyncHandler(async (req, res) => res.json(await portalService.graduateFinalYear(scopeFrom(req), req.body ?? {}))));
 
 hodRouter.get("/dashboard/summary", asyncHandler(async (req, res) => res.json(await portalService.dashboardSummary(scopeFrom(req)))));
 hodRouter.get("/dashboard/attendance-trend", asyncHandler(async (req, res) => res.json(await portalService.dashboardAttendanceTrend(scopeFrom(req), Number(req.query.months ?? 6)))));
@@ -125,6 +127,8 @@ hodRouter.patch("/attendance/lock-all", asyncHandler(async (req, res) => res.jso
 hodRouter.get("/attendance/export", asyncHandler(async (req, res) => sendCsv(res, "attendance.csv", await portalService.attendanceExport(scopeFrom(req), String(req.query.batchId), String(req.query.semesterId)))));
 
 hodRouter.get("/subjects", asyncHandler(async (req, res) => res.json(await portalService.listSubjects(scopeFrom(req), req.query.semesterId as string | undefined, req.query.search as string | undefined, req.query.type as string | undefined))));
+hodRouter.get("/subjects/:subjectId/config", asyncHandler(async (req, res) => res.json(await portalService.getSubjectConfig(str(req.params.subjectId)))));
+hodRouter.put("/subjects/:subjectId/config", asyncHandler(async (req, res) => res.json(await portalService.saveSubjectConfig(str(req.params.subjectId), req.body))));
 hodRouter.get("/subjects/:subjectId", asyncHandler(async (req, res) => res.json(await portalService.getSubject(str(req.params.subjectId)))));
 hodRouter.post("/subjects", asyncHandler(async (req, res) => res.status(201).json(await portalService.createSubject({ ...req.body, universityId: req.user!.universityId }))));
 hodRouter.put("/subjects/:subjectId", asyncHandler(async (req, res) => res.json(await portalService.updateSubject(str(req.params.subjectId), req.body))));
