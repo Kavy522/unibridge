@@ -372,7 +372,7 @@ facultyRouter.get("/exam/status", asyncHandler(async (req, res) => {
 }));
 
 facultyRouter.get("/exam/context", asyncHandler(async (req, res) => {
-  res.json(await portalService.examContext(req.user!.universityId));
+  res.json(await portalService.examContext(req.user!.universityId, req.user!.id));
 }));
 
 facultyRouter.get("/exam/assignments", asyncHandler(async (req, res) => {

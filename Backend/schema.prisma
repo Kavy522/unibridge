@@ -49,6 +49,7 @@ enum AnnouncementScope {
   ALL           // all faculty + all students in university
   BATCH         // specific batch only
   YEAR_LEVEL    // all students of a year level (FY / SY / TY / FINAL)
+  FACULTY_ONLY  // faculty of the sender's HOD only — students never see this
 }
 
 enum EventType {
@@ -385,6 +386,7 @@ model Faculty {
   email           String    @unique
   passwordHash    String
   year            String?   // FY / SY / TY / FINAL — the year this faculty teaches (null for Dean)
+  hodId           String?   // the HOD this faculty belongs to (a faculty pool per HOD)
   isHod           Boolean   @default(false)
   isDean          Boolean   @default(false)  // University (Dean) portal access
   mentorCode      String?   // 3-char, e.g. "SYD" — null for HOD
@@ -396,6 +398,8 @@ model Faculty {
   deletedAt       DateTime? // soft delete
 
   university         University               @relation(fields: [universityId], references: [id])
+  hod                Faculty?                 @relation("HodPool", fields: [hodId], references: [id])
+  poolMembers        Faculty[]                @relation("HodPool")
   hodBatchScopes     HodBatchScope[]          // populated only when isHod = true
   batchAssignments   FacultyBatchAssignment[] // subjects taught
   mentorAssignments  MentorAssignment[]       // populated only when isHod = false
@@ -414,6 +418,7 @@ model Faculty {
   @@unique([universityId, employeeId])
   @@index([universityId, isHod])
   @@index([universityId, mentorCode])
+  @@index([hodId])
   @@map("faculties")
 }
 

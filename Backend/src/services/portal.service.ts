@@ -215,7 +215,8 @@ async function assertBranchAllowed(universityId: string, branch: string) {
 }
 
 async function requireExamCoordinator(facultyId: string, universityId: string) {
-  const semester = await getActiveSemester(universityId);
+  // ponytail: with multi-active-sem, resolve to the semester this faculty actually teaches in.
+  const semester = await facultyActiveSemester(facultyId, universityId);
   const coordinator = semester.id
     ? await prisma.examCoordinator.findFirst({ where: { semesterId: semester.id, facultyId } })
     : null;
@@ -418,11 +419,17 @@ async function computeOverallAttendancePct(enrollmentId: string) {
 }
 
 async function getScopedFaculty(scope: Scope) {
-  // ponytail: year-strict — an HOD only sees faculty of their own year level (matches listFaculty).
+  // ponytail: pool-first — an HOD sees their claimed pool. Fallback to year-strict for
+  // pre-onboarded HODs so the roster isn't empty before they save a pool.
   const hod = await prisma.faculty.findFirst({ where: { id: scope.userId }, select: { year: true } });
   const hodYear = hod?.year || null;
+  const pool = await prisma.faculty.findMany({
+    where: {
+      universityId: scope.universityId, deletedAt: null, isDean: false, hodId: scope.userId, NOT: { employeeId: "ADMIN001" },
+    },
+  });
+  if (pool.length > 0) return pool;
   return prisma.faculty.findMany({
-    // Dean is a university-admin account, never part of a HOD's teaching roster.
     where: {
       universityId: scope.universityId, deletedAt: null, isDean: false, NOT: { employeeId: "ADMIN001" },
       ...(hodYear ? { year: hodYear } : {}),
@@ -624,20 +631,70 @@ export const portalService = {
     return { batches: created, branches: body.branches, initial, semester: activeSem.label };
   },
 
-  // Roster for the onboarding "choose faculty" step: faculty of the HOD's year level, with mentor codes
-  // (the codes the HOD puts in the timetable CSV to auto-assign each slot).
+  // Roster for the onboarding "choose faculty" step: **strictly same year as the HOD**.
+  // Also returns `inPool` flag so the UI can preselect already-linked faculty, and `takenByHod`
+  // so the HOD sees which faculty are already claimed by a sibling HOD in the same year.
   async hodOnboardingFaculty(scope: Scope) {
     const hod = await facultyById(scope.userId);
+    if (!hod.year) throw new ApiError(400, "HOD_YEAR_MISSING", "HOD must have a year level set.");
     const roster = await prisma.faculty.findMany({
       where: {
         universityId: scope.universityId, deletedAt: null, isDean: false, isHod: false,
         NOT: { employeeId: "ADMIN001" },
-        ...(hod.year ? { year: hod.year } : {}),
+        year: hod.year,   // strict same-year gate — no cross-year picking
       },
-      select: { id: true, name: true, employeeId: true, mentorCode: true, year: true },
+      select: { id: true, name: true, employeeId: true, mentorCode: true, year: true, hodId: true },
       orderBy: { name: "asc" },
     });
-    return { data: roster, year: hod.year };
+    return {
+      year: hod.year,
+      data: roster.map((f) => ({
+        id: f.id, name: f.name, employeeId: f.employeeId, mentorCode: f.mentorCode, year: f.year,
+        inPool: f.hodId === scope.userId,
+        takenByHod: !!f.hodId && f.hodId !== scope.userId,
+      })),
+    };
+  },
+
+  // Save the HOD's chosen faculty pool. The selection can ONLY include faculty of the same year;
+  // faculty already claimed by another HOD are rejected unless explicitly reclaimed.
+  async hodSaveFacultyPool(scope: Scope, body: { facultyIds: string[]; reclaim?: boolean }) {
+    const hod = await facultyById(scope.userId);
+    if (!hod.year) throw new ApiError(400, "HOD_YEAR_MISSING", "HOD must have a year level set.");
+    const ids = Array.isArray(body.facultyIds) ? [...new Set(body.facultyIds)] : [];
+    if (ids.length === 0) return { pooled: 0, released: 0 };
+    const rows = await prisma.faculty.findMany({
+      where: { id: { in: ids }, universityId: scope.universityId, isHod: false, isDean: false, deletedAt: null },
+      select: { id: true, year: true, hodId: true, name: true },
+    });
+    // gate: strict same-year
+    const wrongYear = rows.filter((f) => f.year !== hod.year);
+    if (wrongYear.length > 0) throw new ApiError(400, "CROSS_YEAR_PICK", `Faculty must be ${hod.year}: ${wrongYear.map((f) => f.name).join(", ")}.`);
+    // gate: don't steal from another HOD unless caller opts in
+    if (!body.reclaim) {
+      const claimed = rows.filter((f) => f.hodId && f.hodId !== scope.userId);
+      if (claimed.length > 0) throw new ApiError(409, "ALREADY_CLAIMED", `Already in another HOD's pool: ${claimed.map((f) => f.name).join(", ")}.`);
+    }
+    // release faculty previously in this HOD's pool but not in the new set (to keep pool exact)
+    const released = await prisma.faculty.updateMany({
+      where: { hodId: scope.userId, id: { notIn: ids } },
+      data: { hodId: null },
+    });
+    await prisma.faculty.updateMany({
+      where: { id: { in: ids } },
+      data: { hodId: scope.userId },
+    });
+    return { pooled: ids.length, released: released.count };
+  },
+
+  // Read the current pool (used by the HOD Faculty page + Announcements FACULTY_ONLY audience).
+  async hodFacultyPool(scope: Scope) {
+    const rows = await prisma.faculty.findMany({
+      where: { hodId: scope.userId, deletedAt: null },
+      select: { id: true, name: true, employeeId: true, mentorCode: true, year: true, isActive: true },
+      orderBy: { name: "asc" },
+    });
+    return { data: rows };
   },
 
   // Every batch this HOD has ever owned, across all years/semesters (their history record).
@@ -934,10 +991,13 @@ export const portalService = {
     // ponytail: HOD-year-strict — filter by the HOD's own `year` label; drop any faculty in other years.
     const hod = await prisma.faculty.findFirst({ where: { id: scope.userId }, select: { year: true } });
     const hodYear = hod?.year || null;
+    // ponytail: pool-first — if the HOD has claimed a pool, show only that pool.
+    // Fall back to year-strict for HODs who haven't set a pool yet.
+    const poolCount = await prisma.faculty.count({ where: { hodId: scope.userId, deletedAt: null } });
     const faculties = await prisma.faculty.findMany({
       where: {
         universityId: scope.universityId, deletedAt: null, isDean: false, NOT: { employeeId: "ADMIN001" },
-        ...(hodYear ? { year: hodYear } : {}),
+        ...(poolCount > 0 ? { hodId: scope.userId } : hodYear ? { year: hodYear } : {}),
       },
     });
     const rows = await Promise.all(
@@ -3378,10 +3438,17 @@ export const portalService = {
 
   async facultyAnnouncements(facultyId: string, universityId: string, page = 1, limit = 20) {
     const scope = await getFacultyScopeData(facultyId, universityId);
+    const me = await prisma.faculty.findUnique({ where: { id: facultyId }, select: { hodId: true } });
     const rows = await prisma.announcement.findMany({
       where: {
         universityId, deletedAt: null,
-        OR: [{ scope: "ALL" }, { scope: "BATCH", scopeValue: { in: scope.assignedBatchIds } }, { scope: "YEAR_LEVEL" }],
+        OR: [
+          { scope: "ALL" },
+          { scope: "BATCH", scopeValue: { in: scope.assignedBatchIds } },
+          { scope: "YEAR_LEVEL" },
+          // ponytail: FACULTY_ONLY — receive if I'm in this HOD's pool.
+          ...(me?.hodId ? [{ scope: "FACULTY_ONLY" as any, facultyId: me.hodId }] : []),
+        ],
       },
       orderBy: { createdAt: "desc" },
       include: { faculty: { select: { name: true, isHod: true } } },
@@ -3405,11 +3472,26 @@ export const portalService = {
     const a = await prisma.announcement.create({ data: { universityId, facultyId, title: body.title, body: body.body, scope: body.scope as any, scopeValue: body.scopeValue } });
     const batch = body.scope === "BATCH" ? await prisma.batch.findUnique({ where: { id: body.scopeValue! }, select: { code: true } }) : null;
     // Fan-out notifications to matching students
-    await this.fanOutAnnouncement(universityId, body.scope, body.scopeValue, body.title);
+    await this.fanOutAnnouncement(universityId, body.scope, body.scopeValue, body.title, facultyId);
     return { id: a.id, title: a.title, scope: a.scope, scopeLabel: a.scope === "BATCH" && batch ? `Batch ${batch.code}` : a.scopeValue, createdAt: a.createdAt };
   },
 
-  async fanOutAnnouncement(universityId: string, scope: string, scopeValue: string | undefined, title: string) {
+  async fanOutAnnouncement(universityId: string, scope: string, scopeValue: string | undefined, title: string, senderId?: string) {
+    // FACULTY_ONLY targets the sender-HOD's pool of faculty, not students.
+    if (scope === "FACULTY_ONLY") {
+      if (!senderId) return;
+      const pool = await prisma.faculty.findMany({ where: { universityId, hodId: senderId, deletedAt: null, isActive: true }, select: { id: true } });
+      if (pool.length === 0) return;
+      await this.notifyMany(
+        universityId,
+        pool.map((f) => ({ facultyId: f.id })),
+        "ANNOUNCEMENT",
+        `New announcement: ${title}`,
+        "Tap to read.",
+        "/faculty/announcements",
+      );
+      return;
+    }
     let studentIds: string[] = [];
     if (scope === "BATCH" && scopeValue) {
       const enrs = await prisma.studentEnrollment.findMany({ where: { batchId: scopeValue, isCurrent: true }, select: { studentId: true } });
@@ -4121,13 +4203,14 @@ export const portalService = {
   },
 
   async facultyExamStatus(facultyId: string, universityId: string) {
-    const sem = await getActiveSemester(universityId);
+    // ponytail: resolve THIS faculty's active semester (multi-active-sem era).
+    const sem = await facultyActiveSemester(facultyId, universityId);
     const row = sem.id ? await prisma.examCoordinator.findFirst({ where: { semesterId: sem.id, facultyId } }) : null;
     return { isCoordinator: !!row, slot: row?.slot ?? null, semesterId: sem.id, semesterLabel: sem.label };
   },
 
-  async examContext(universityId: string) {
-    const sem = await getActiveSemester(universityId);
+  async examContext(universityId: string, facultyId?: string) {
+    const sem = facultyId ? await facultyActiveSemester(facultyId, universityId) : await getActiveSemester(universityId);
     if (!sem.id) return { semesterId: "", activeYearLevel: null, phases: [], subjects: [], batches: [], faculty: [], subjectFaculty: {} };
     const [phases, subjects, batches, faculty, yearAssignments] = await Promise.all([
       prisma.phase.findMany({ where: { semesterId: sem.id }, orderBy: { number: "asc" } }),
@@ -4766,13 +4849,14 @@ export const portalService = {
     };
   },
 
-  async createHodAnnouncement(facultyId: string, universityId: string, body: { title: string; body: string; scope: "BATCH" | "YEAR_LEVEL" | "ALL"; scopeValue?: string }) {
+  async createHodAnnouncement(facultyId: string, universityId: string, body: { title: string; body: string; scope: "BATCH" | "YEAR_LEVEL" | "ALL" | "FACULTY_ONLY"; scopeValue?: string }) {
     if (!body.title || !body.body) throw new ApiError(400, "VALIDATION_ERROR", "Title and body required.");
-    if (body.scope !== "ALL" && !body.scopeValue) throw new ApiError(400, "VALIDATION_ERROR", "scopeValue required for scoped announcements.");
+    // FACULTY_ONLY targets the HOD's pool (no scopeValue needed — pool is derived from Faculty.hodId).
+    if (body.scope !== "ALL" && body.scope !== "FACULTY_ONLY" && !body.scopeValue) throw new ApiError(400, "VALIDATION_ERROR", "scopeValue required for scoped announcements.");
     const a = await prisma.announcement.create({
       data: { universityId, facultyId, title: body.title, body: body.body, scope: body.scope as any, scopeValue: body.scopeValue ?? null },
     });
-    await this.fanOutAnnouncement(universityId, body.scope, body.scopeValue, body.title);
+    await this.fanOutAnnouncement(universityId, body.scope, body.scopeValue, body.title, facultyId);
     return { id: a.id, title: a.title, scope: a.scope, createdAt: a.createdAt };
   },
 

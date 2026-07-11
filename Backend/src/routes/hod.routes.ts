@@ -38,6 +38,8 @@ hodRouter.get("/my-scope", asyncHandler(async (req, res) => res.json(await porta
 hodRouter.post("/onboarding/complete", asyncHandler(async (req, res) => res.json(await portalService.hodOnboardingComplete(scopeFrom(req), req.body))));
 hodRouter.get("/onboarding/branches", asyncHandler(async (req, res) => res.json(await portalService.uniBranches(req.user!.universityId))));
 hodRouter.get("/onboarding/faculty", asyncHandler(async (req, res) => res.json(await portalService.hodOnboardingFaculty(scopeFrom(req)))));
+hodRouter.post("/faculty/pool", asyncHandler(async (req, res) => res.json(await portalService.hodSaveFacultyPool(scopeFrom(req), req.body))));
+hodRouter.get("/faculty/pool", asyncHandler(async (req, res) => res.json(await portalService.hodFacultyPool(scopeFrom(req)))));
 hodRouter.get("/batches/history", asyncHandler(async (req, res) => res.json(await portalService.hodBatchHistory(scopeFrom(req)))));
 hodRouter.post("/reset-semester", asyncHandler(async (req, res) => res.json(await portalService.hodResetSemester(scopeFrom(req)))));
 

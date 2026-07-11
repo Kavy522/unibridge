@@ -2,7 +2,7 @@ import type { YearLevel } from './common'
 
 // ── Scope ──────────────────────────────────────────────
 export interface HodScope {
-  hod: { id: string; name: string; year?: string | null; employeeId?: string | null }
+  hod: { id: string; name: string; year?: string | null; employeeId?: string | null; sectionTag?: string | null }
   activeSemester: { id: string; label: string; number: number }
   batches: { id: string; code: string; yearLevel: YearLevel; studentCount: number }[]
   totalStudents: number

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Check, Download } from 'lucide-react'
@@ -143,41 +143,62 @@ function StudentsStep({ semesterId, onNext }: { semesterId: string; onNext: () =
   )
 }
 
-// ── Step 3: pick faculty from the year roster ──
+// ── Step 3: pick faculty from the SAME-YEAR roster (saved as pool) ──
 function FacultyStep({ onNext }: { onNext: () => void }) {
   const rosterQ = useQuery({ queryKey: ['hod', 'onboarding', 'faculty'], queryFn: hodApi.onboarding.faculty })
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [reclaim, setReclaim] = useState(false)
   const roster = rosterQ.data?.data ?? []
-  const allIds = roster.map((f) => f.id).join(',')
+  const year = rosterQ.data?.year
+
+  const preselected = useMemo(() => roster.filter((f) => f.inPool).map((f) => f.id).join(','), [roster])
   useEffect(() => {
-    if (allIds) setSelected(new Set(allIds.split(',')))
-  }, [allIds])
+    if (preselected) setSelected(new Set(preselected.split(',')))
+  }, [preselected])
+
   const toggle = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const save = useMutation({
+    mutationFn: () => hodApi.facultyPool.save({ facultyIds: [...selected], reclaim }),
+    onSuccess: (r) => { toast.success(`Faculty pool saved (${r.pooled} in pool)`); onNext() },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-text-secondary">
-        Select the faculty teaching your batches this semester. Use each faculty's <b>mentor code</b> in the timetable CSV — they'll be auto-assigned to the batch.
+        Pick your faculty pool. Only <b>{year ?? 'same-year'}</b> faculty are shown. They'll be reserved for you and receive HOD's Faculty-Only announcements.
       </p>
       {rosterQ.isLoading ? (
         <div className="flex justify-center py-6"><Spinner /></div>
       ) : roster.length === 0 ? (
-        <p className="rounded-sm bg-surface-2 p-3 text-xs text-text-muted">No faculty in your year level yet. Ask the Dean to add faculty, then use their mentor codes in the timetable.</p>
+        <p className="rounded-sm bg-surface-2 p-3 text-xs text-text-muted">No {year ?? ''} faculty yet. Ask the Dean to add faculty at this year level.</p>
       ) : (
-        <div className="max-h-64 space-y-1.5 overflow-y-auto" data-all={allIds}>
+        <div className="max-h-64 space-y-1.5 overflow-y-auto">
           {roster.map((f) => (
-            <label key={f.id} className="flex cursor-pointer items-center gap-2.5 rounded-sm border border-border px-3 py-2 hover:border-primary">
-              <input type="checkbox" checked={selected.has(f.id)} onChange={() => toggle(f.id)} className="h-4 w-4 accent-primary" />
+            <label key={f.id} className={`flex items-center gap-2.5 rounded-sm border px-3 py-2 ${f.takenByHod && !reclaim ? 'cursor-not-allowed border-border bg-surface-2 opacity-60' : 'cursor-pointer border-border hover:border-primary'}`}>
+              <input
+                type="checkbox"
+                checked={selected.has(f.id)}
+                disabled={f.takenByHod && !reclaim}
+                onChange={() => toggle(f.id)}
+                className="h-4 w-4 accent-primary"
+              />
               <span className="flex-1 text-sm font-medium text-text-primary">{f.name}</span>
               <span className="font-mono text-xs text-text-muted">{f.employeeId}</span>
               {f.mentorCode ? <Badge tone="teal">{f.mentorCode}</Badge> : <span className="text-xs text-text-muted">no code</span>}
+              {f.takenByHod && <Badge tone="warning">In another HOD's pool</Badge>}
             </label>
           ))}
         </div>
       )}
+      <label className="flex items-center gap-2 text-xs text-text-secondary">
+        <input type="checkbox" checked={reclaim} onChange={(e) => setReclaim(e.target.checked)} className="h-3.5 w-3.5 accent-primary" />
+        Allow reclaiming faculty already in another HOD's pool
+      </label>
       <div className="flex justify-between">
         <span className="text-xs text-text-muted">{selected.size} selected</span>
-        <Button onClick={onNext}>Next: Timetable</Button>
+        <Button onClick={() => save.mutate()} loading={save.isPending} disabled={selected.size === 0}>Save & Next: Timetable</Button>
       </div>
     </div>
   )
