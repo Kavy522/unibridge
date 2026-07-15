@@ -1,16 +1,16 @@
-# Graph Report - UniBridge_  (2026-07-14)
+# Graph Report - UniBridge_  (2026-07-15)
 
 ## Corpus Check
-- 173 files · ~256,665 words
+- 174 files · ~257,105 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1529 nodes · 1579 edges · 275 communities (133 shown, 142 thin omitted)
+- 1539 nodes · 1560 edges · 268 communities (130 shown, 138 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 5 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7daf84bd`
+- Built from commit: `b4e31ae4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -177,7 +177,6 @@
 - react-dom
 - react-router-dom
 - @supabase/supabase-js
-- @tanstack/react-query
 - POST /auth/refresh
 - CSV Upload Response Pattern (inserted/updated/errors)
 - Standard Error Response Shape
@@ -250,12 +249,6 @@
 - Student Socket.io Chat Events
 - studentScope Middleware (req.student, req.currentEnrollment)
 - Student Study Planner (AI-suggested plan)
-- dotenv
-- express
-- pg
-- prisma
-- @prisma/client
-- tsx
 
 ## God Nodes (most connected - your core abstractions)
 1. `Store` - 24 edges
@@ -278,8 +271,8 @@
   Backend/src/app.ts → Backend/src/middleware/errorHandler.ts
 - `createApp()` --indirect_call--> `notFoundHandler()`  [INFERRED]
   Backend/src/app.ts → Backend/src/middleware/errorHandler.ts
-- `paginate()` --calls--> `buildPagination()`  [EXTRACTED]
-  Backend/src/services/portal.service.ts → Backend/src/utils/http.ts
+- `HodScope` --references--> `YearLevel`  [EXTRACTED]
+  frontend/src/types/hod.ts → frontend/src/types/common.ts
 
 ## Import Cycles
 - None detected.
@@ -289,39 +282,39 @@
 - **Three-Portal API Contract Set (HOD/Faculty/Student)** — api_hod_rest_reference, faculty_api_reference, student_api_reference, frontend_multi_role_architecture [EXTRACTED 1.00]
 - **Mentor Chat Real-Time Flow** — student_api_mentor_chat, faculty_api_mentorship_chat, plan_socketio_chat_system, frontend_use_socket [EXTRACTED 1.00]
 
-## Communities (275 total, 142 thin omitted)
+## Communities (268 total, 138 thin omitted)
 
 ### Community 0 - "Backend Bootstrap & Routing"
 Cohesion: 0.07
-Nodes (29): WIPE_TABLES, createApp(), adapter, pool, prisma, universityId(), requireAuth(), requireFacultyPortal() (+21 more)
+Nodes (26): WIPE_TABLES, createApp(), adapter, pool, prisma, universityId(), requireAuth(), requireSuperAdmin() (+18 more)
 
 ### Community 1 - "Backend Domain Types & HOD Service"
 Cohesion: 0.10
-Nodes (37): Store, HodService, StudentListParams, paginate(), AcademicYear, AcademicYearStatus, Activity, ArchiveJob (+29 more)
+Nodes (37): Store, HodService, StudentListParams, AcademicYear, AcademicYearStatus, Activity, ArchiveJob, AttendanceRecord (+29 more)
 
 ### Community 2 - "Frontend API Client Layer"
-Cohesion: 0.06
-Nodes (27): authApi, api, queue, facultyApi, Params, hodApi, Params, SubjectComponentCfg (+19 more)
+Cohesion: 0.07
+Nodes (23): authApi, api, queue, hodApi, Params, SubjectComponentCfg, SubjectConfig, SubjectConfigInput (+15 more)
 
 ### Community 3 - "Portal Service Core Logic"
 Cohesion: 0.06
-Nodes (5): DAY_LABELS, getAttendanceRules(), Scope, statusFromAttendancePctAndMarks(), Role
+Nodes (4): DAY_LABELS, getAttendanceRules(), Scope, statusFromAttendancePctAndMarks()
 
 ### Community 4 - "Frontend Build Tooling"
 Cohesion: 0.11
 Nodes (19): autoprefixer, devDependencies, autoprefixer, postcss, tailwindcss, @types/node, @types/react, @types/react-dom (+11 more)
 
 ### Community 5 - "Backend Dependencies"
-Cohesion: 0.12
-Nodes (17): dependencies, compression, cors, helmet, morgan, multer, @prisma/adapter-pg, @types/multer (+9 more)
+Cohesion: 0.07
+Nodes (29): dependencies, compression, cors, dotenv, express, helmet, morgan, multer (+21 more)
 
 ### Community 6 - "HOD Frontend Types"
-Cohesion: 0.08
-Nodes (28): YearLevel, AcademicYearWithSemesters, ActivityItem, AnalyticsKpi, AssignmentRow, AtRiskRow, AttendanceStatSummary, AttendanceTableRow (+20 more)
+Cohesion: 0.04
+Nodes (45): AuthUser, LoginResponse, LoginRole, RefreshResponse, University, UserRole, AcademicYear, Announcement (+37 more)
 
 ### Community 7 - "Backend Dev Tooling"
-Cohesion: 0.13
-Nodes (15): devDependencies, @types/compression, @types/cors, @types/express, @types/morgan, @types/node, @types/pg, typescript (+7 more)
+Cohesion: 0.07
+Nodes (27): devDependencies, @types/compression, @types/cors, @types/express, @types/morgan, @types/node, @types/pg, typescript (+19 more)
 
 ### Community 8 - "Frontend TS App Config"
 Cohesion: 0.07
@@ -329,7 +322,7 @@ Nodes (27): compilerOptions, allowImportingTsExtensions, baseUrl, composite, iso
 
 ### Community 9 - "Frontend Runtime Dependencies"
 Cohesion: 0.12
-Nodes (17): clsx, date-fns, dependencies, clsx, date-fns, lucide-react, react, react-hot-toast (+9 more)
+Nodes (17): axios, clsx, date-fns, dependencies, axios, clsx, date-fns, lucide-react (+9 more)
 
 ### Community 10 - "Frontend Layout & Navigation"
 Cohesion: 0.17
@@ -352,8 +345,8 @@ Cohesion: 0.13
 Nodes (10): BASE, DAYS, HodTimetablePage(), isLab(), isOther(), LAB, OTHER, Palette (+2 more)
 
 ### Community 15 - "Faculty Frontend Types"
-Cohesion: 0.14
-Nodes (15): PaginatedResponse, AttendanceSessionRow, ChatMsg, FacultyAnnouncement, FacultyDashboardStats, FacultyNote, FacultyQuiz, FacultyResultRow (+7 more)
+Cohesion: 0.13
+Nodes (14): AttendanceSessionRow, ChatMsg, FacultyAnnouncement, FacultyDashboardStats, FacultyNote, FacultyQuiz, FacultyResultRow, FacultyResultsResponse (+6 more)
 
 ### Community 16 - "Student Frontend Types"
 Cohesion: 0.12
@@ -372,8 +365,8 @@ Cohesion: 0.14
 Nodes (5): LeaderRow, PromoContext, STEPS, YEAR_LABEL, YearPreview
 
 ### Community 24 - "Common Shared Types"
-Cohesion: 0.18
-Nodes (10): AcademicYear, Announcement, ApiError, AttendanceSummary, Batch, CalendarEvent, ChatMessage, Phase (+2 more)
+Cohesion: 0.20
+Nodes (9): Confirmed Bugs, P0 — Forged Access Tokens Grant Access, P0 — HOD and Faculty Login Tabs Do Not Enforce Their Roles, P1 — Any Logged-In User Can Open Any Portal Route, P1 — Faculty Password Change Always Fails, P1 — Sessions Do Not Expire or Respect Deactivation, P2 — Forgot Password Is Not Implemented, P2 — Remember Me Does Nothing (+1 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.22
@@ -412,8 +405,8 @@ Cohesion: 0.29
 Nodes (4): AddStudentModal(), BRANCHES, STATUSES, statusTone
 
 ### Community 37 - "Community 37"
-Cohesion: 0.25
-Nodes (6): AuthUser, LoginResponse, LoginRole, RefreshResponse, University, UserRole
+Cohesion: 0.50
+Nodes (3): env, envSchema, app
 
 ### Community 39 - "Community 39"
 Cohesion: 0.29
@@ -424,8 +417,8 @@ Cohesion: 0.29
 Nodes (4): Coordinator, examApi, ExamAssignment, STATUS_TONE
 
 ### Community 43 - "Community 43"
-Cohesion: 0.40
-Nodes (6): facultyActiveSemester(), getActiveSemester(), getSemester(), hodActiveSemester(), requireExamCoordinator(), scopeSemester()
+Cohesion: 0.20
+Nodes (11): ensureFacultyAssignedBatch(), ensureFacultyAssignedSubject(), facultyActiveSemester(), getActiveSemester(), getFacultyAssignments(), getFacultyScopeData(), getFacultyVisibleEnrollments(), getSemester() (+3 more)
 
 ### Community 48 - "Community 48"
 Cohesion: 0.33
@@ -440,8 +433,8 @@ Cohesion: 0.47
 Nodes (3): router, ProtectedRoute(), RoleRouter()
 
 ### Community 52 - "Community 52"
-Cohesion: 0.40
-Nodes (5): ensureFacultyAssignedBatch(), ensureFacultyAssignedSubject(), getFacultyAssignments(), getFacultyScopeData(), getFacultyVisibleEnrollments()
+Cohesion: 0.50
+Nodes (4): 11. Calendar — View & Post, `GET /faculty/calendar/events`, `GET /faculty/calendar/events/upcoming`, `GET /faculty/calendar/phase-timeline`
 
 ### Community 55 - "Community 55"
 Cohesion: 0.40
@@ -456,16 +449,12 @@ Cohesion: 0.50
 Nodes (3): Select, SelectOption, SelectProps
 
 ### Community 75 - "Community 75"
-Cohesion: 0.28
-Nodes (13): env, envSchema, amzDate(), basePath, enc(), encPath(), hmac(), presignGetUrl() (+5 more)
+Cohesion: 0.38
+Nodes (11): amzDate(), basePath, enc(), encPath(), hmac(), presignGetUrl(), sha256hex(), signingKey() (+3 more)
 
 ### Community 76 - "Community 76"
 Cohesion: 0.67
 Nodes (3): hodAllBatchIds(), hodEnrollmentWhere(), scopedCurrentEnrollments()
-
-### Community 99 - "Community 99"
-Cohesion: 0.25
-Nodes (8): scripts, build, dev, postinstall, prisma:generate, prisma:migrate, prisma:push, start
 
 ### Community 136 - "UniPortal — Scalable Multi-Role React Architecture"
 Cohesion: 0.06
@@ -529,7 +518,7 @@ Nodes (9): 11. Calendar Page, `DELETE /hod/calendar/events/:eventId`, `GET /hod/
 
 ### Community 151 - "UniPortal — Faculty API Reference"
 Cohesion: 0.22
-Nodes (8): 11. Calendar — View & Post, 13. Faculty Error Codes, Context & Scoping Rules, `GET /faculty/calendar/events`, `GET /faculty/calendar/events/upcoming`, `GET /faculty/calendar/phase-timeline`, Table of Contents, UniPortal — Faculty API Reference
+Nodes (8): 13. Faculty Error Codes, 3. My Schedule — Timetable & Assignments, Context & Scoping Rules, `GET /faculty/my-scope`, `GET /faculty/timetable`, `GET /faculty/timetable/today`, Table of Contents, UniPortal — Faculty API Reference
 
 ### Community 152 - "2. Faculty Profile & Dashboard"
 Cohesion: 0.22
@@ -599,10 +588,6 @@ Nodes (6): 2. Dashboard, `GET /hod/dashboard/activity-feed`, `GET /hod/dashboard
 Cohesion: 0.33
 Nodes (6): 1. Auth & Session, `GET /auth/me`, `POST /auth/forgot-password`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh`
 
-### Community 169 - "storage.ts"
-Cohesion: 0.40
-Nodes (4): name, private, type, version
-
 ### Community 170 - "Affected Endpoints — Full Corrected List"
 Cohesion: 0.33
 Nodes (6): Affected Endpoints — Full Corrected List, `GET /hod/promotion/preview`, `GET /hod/promotion/years`, PAGE 10: Promotion, `POST /hod/promotion/execute`, `POST /hod/promotion/mapping/csv`
@@ -667,10 +652,6 @@ Nodes (5): 7. Faculty Notes — View & Download, `GET /student/notes`, `GET /stu
 Cohesion: 0.50
 Nodes (4): 10. Results — View Only, `GET /faculty/results`, `GET /faculty/results/leaderboard`, `GET /faculty/results/summary`
 
-### Community 186 - "3. My Schedule — Timetable & Assignments"
-Cohesion: 0.50
-Nodes (4): 3. My Schedule — Timetable & Assignments, `GET /faculty/my-scope`, `GET /faculty/timetable`, `GET /faculty/timetable/today`
-
 ### Community 187 - "11. Calendar"
 Cohesion: 0.50
 Nodes (4): 11. Calendar, `GET /student/calendar/events`, `GET /student/calendar/events/upcoming`, `GET /student/calendar/phase-timeline`
@@ -688,24 +669,24 @@ Cohesion: 0.50
 Nodes (4): 6. Attendance, `GET /student/attendance`, `GET /student/attendance/history`, `GET /student/attendance/:subjectId/log`
 
 ## Knowledge Gaps
-- **848 isolated node(s):** `name`, `version`, `private`, `type`, `dev` (+843 more)
+- **860 isolated node(s):** `P0 — Forged Access Tokens Grant Access`, `P0 — HOD and Faculty Login Tabs Do Not Enforce Their Roles`, `P1 — Any Logged-In User Can Open Any Portal Route`, `P1 — Sessions Do Not Expire or Respect Deactivation`, `P1 — Faculty Password Change Always Fails` (+855 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **142 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **138 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
+- **Why does `Affected Endpoints — Full Corrected List` connect `Affected Endpoints — Full Corrected List` to `PAGE 7: Subjects`, `UniPortal — HOD Scoping Architecture`, `PAGE 9: Analytics`, `PAGE 3: Students`, `PAGE 12: Settings`, `PAGE 11: Calendar`, `PAGE 2: Dashboard`, `PAGE 5: Results`, `PAGE 4: Faculty`, `PAGE 8: Mentorship`, `PAGE 6: Attendance`?**
+  _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **Why does `UniPortal — Student API Reference` connect `UniPortal — Student API Reference` to `13. AI Assistant`, `2. Student Profile & Dashboard`, `12. Mentor Chat`, `9. Quizzes — Attempt & Review`, `10. Announcements`, `14. Study Planner`, `1. Auth & Session`, `8. Self Notes`, `5. Results`, `7. Faculty Notes — View & Download`, `11. Calendar`, `15. Leaderboard`, `3. Academic Journey & Enrollment History`, `6. Attendance`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **Why does `Affected Endpoints — Full Corrected List` connect `Affected Endpoints — Full Corrected List` to `PAGE 7: Subjects`, `UniPortal — HOD Scoping Architecture`, `PAGE 9: Analytics`, `PAGE 3: Students`, `PAGE 12: Settings`, `PAGE 11: Calendar`, `PAGE 2: Dashboard`, `PAGE 5: Results`, `PAGE 4: Faculty`, `PAGE 8: Mentorship`, `PAGE 6: Attendance`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
-- **Why does `UniPortal — Faculty API Reference` connect `UniPortal — Faculty API Reference` to `5. Attendance — Mark & Track`, `6. Notes — Upload & Manage`, `1. Auth & Session`, `7. Quiz — Create & Manage`, `12. Analytics — Faculty View`, `4. Students — View Only`, `8. Announcements`, `2. Faculty Profile & Dashboard`, `10. Results — View Only`, `3. My Schedule — Timetable & Assignments`, `9. Mentorship — Mentee List & Chat`?**
+- **Why does `UniPortal — Faculty API Reference` connect `UniPortal — Faculty API Reference` to `5. Attendance — Mark & Track`, `1. Auth & Session`, `7. Quiz — Create & Manage`, `12. Analytics — Faculty View`, `4. Students — View Only`, `8. Announcements`, `Community 52`, `2. Faculty Profile & Dashboard`, `10. Results — View Only`, `6. Notes — Upload & Manage`, `9. Mentorship — Mentee List & Chat`?**
   _High betweenness centrality (0.003) - this node is a cross-community bridge._
-- **What connects `name`, `version`, `private` to the rest of the system?**
-  _848 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `P0 — Forged Access Tokens Grant Access`, `P0 — HOD and Faculty Login Tabs Do Not Enforce Their Roles`, `P1 — Any Logged-In User Can Open Any Portal Route` to the rest of the system?**
+  _860 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Backend Bootstrap & Routing` be split into smaller, more focused modules?**
-  _Cohesion score 0.07467532467532467 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0726764500349406 - nodes in this community are weakly interconnected._
 - **Should `Backend Domain Types & HOD Service` be split into smaller, more focused modules?**
   _Cohesion score 0.1 - nodes in this community are weakly interconnected._
 - **Should `Frontend API Client Layer` be split into smaller, more focused modules?**
-  _Cohesion score 0.057692307692307696 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0659536541889483 - nodes in this community are weakly interconnected._

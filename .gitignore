@@ -20,3 +20,5 @@ Backend/.env
 .vscode/
 
 HOD_UI
+
+graphify-out

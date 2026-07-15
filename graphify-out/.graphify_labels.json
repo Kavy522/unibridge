@@ -195,7 +195,6 @@
   "193": "react-dom",
   "194": "react-router-dom",
   "195": "@supabase/supabase-js",
-  "196": "@tanstack/react-query",
   "197": "POST /auth/refresh",
   "198": "CSV Upload Response Pattern (inserted/updated/errors)",
   "199": "Standard Error Response Shape",
@@ -267,11 +266,5 @@
   "265": "Student Results Visible Only After Publish",
   "266": "Student Socket.io Chat Events",
   "267": "studentScope Middleware (req.student, req.currentEnrollment)",
-  "268": "Student Study Planner (AI-suggested plan)",
-  "269": "dotenv",
-  "270": "express",
-  "271": "pg",
-  "272": "prisma",
-  "273": "@prisma/client",
-  "274": "tsx"
+  "268": "Student Study Planner (AI-suggested plan)"
 }
