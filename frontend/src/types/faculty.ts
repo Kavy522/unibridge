@@ -72,6 +72,8 @@ export interface FacultyNote {
   fileType?: string
   aiSummaryStatus?: 'pending' | 'complete' | 'failed' | null
   batchCodes?: string[]
+  status?: 'PUBLISHED' | 'SCHEDULED'
+  releaseAt?: string
   createdAt: string
 }
 
