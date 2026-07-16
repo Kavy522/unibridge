@@ -105,9 +105,9 @@
     "semantic_hash": "1d6cdb45bd44eb33d20b87245023cff2"
   },
   "Backend/src/routes/student.routes.ts": {
-    "mtime": 1783398806.508702,
-    "ast_hash": "50e1011809f7d19ef56e7358fd3195d0",
-    "semantic_hash": "50e1011809f7d19ef56e7358fd3195d0"
+    "mtime": 1784203865.7464776,
+    "ast_hash": "f0b70b3307cd9e00c01decef8d8fe9bd",
+    "semantic_hash": ""
   },
   "Backend/src/server.ts": {
     "mtime": 1783955051.6811526,
@@ -385,9 +385,9 @@
     "semantic_hash": "92aeb75d5391f7d9f03d9c11e05f16d7"
   },
   "frontend/src/components/ui/StatCard.tsx": {
-    "mtime": 1783252468.1038284,
-    "ast_hash": "17071f4c226d4e32423cf14279b6ac73",
-    "semantic_hash": "17071f4c226d4e32423cf14279b6ac73"
+    "mtime": 1784210040.730108,
+    "ast_hash": "c328557bc635e63a9705f8b7815c24ff",
+    "semantic_hash": ""
   },
   "frontend/src/components/ui/Table.tsx": {
     "mtime": 1783254024.672153,
@@ -475,9 +475,9 @@
     "semantic_hash": "dcde4d2c17b6f27fae3a708a454a5acd"
   },
   "frontend/src/pages/faculty/DashboardPage.tsx": {
-    "mtime": 1783597651.806796,
-    "ast_hash": "49e2d3f236bb72eedd84deed54a0b080",
-    "semantic_hash": "49e2d3f236bb72eedd84deed54a0b080"
+    "mtime": 1784209470.0878286,
+    "ast_hash": "a3a75206522ee6b2853acfdd4a98e227",
+    "semantic_hash": ""
   },
   "frontend/src/pages/faculty/ExamsPage.tsx": {
     "mtime": 1783733596.8273926,
@@ -505,9 +505,9 @@
     "semantic_hash": "e5a5f3fde45fceb0ede2d9b18bc09e12"
   },
   "frontend/src/pages/faculty/SchedulePage.tsx": {
-    "mtime": 1783309711.4170158,
-    "ast_hash": "34164037b9fbc46ff7e0dfefd3083954",
-    "semantic_hash": "34164037b9fbc46ff7e0dfefd3083954"
+    "mtime": 1784209452.6002882,
+    "ast_hash": "178562594a69299d42c10f88b83e5cae",
+    "semantic_hash": ""
   },
   "frontend/src/pages/faculty/SettingsPage.tsx": {
     "mtime": 1783597651.8045273,
@@ -520,9 +520,9 @@
     "semantic_hash": "dbed1c5d5e7ec004c7e423c324ca58d1"
   },
   "frontend/src/pages/hod/AnalyticsPage.tsx": {
-    "mtime": 1783750825.04619,
-    "ast_hash": "4a8f7c00808ea31276f461c060c886ae",
-    "semantic_hash": "4a8f7c00808ea31276f461c060c886ae"
+    "mtime": 1784210085.0958614,
+    "ast_hash": "a49a2525c939fa6b4e1d60ab468d65e1",
+    "semantic_hash": ""
   },
   "frontend/src/pages/hod/AnnouncementsPage.tsx": {
     "mtime": 1783732185.037297,
@@ -535,9 +535,9 @@
     "semantic_hash": "df927a318ecdba221c3208cc63d3e254"
   },
   "frontend/src/pages/hod/CalendarPage.tsx": {
-    "mtime": 1783578246.8325748,
-    "ast_hash": "0925c48eb1f3695b4d051057982962cc",
-    "semantic_hash": "0925c48eb1f3695b4d051057982962cc"
+    "mtime": 1784210106.0403533,
+    "ast_hash": "2f7cc572e202cf821ca73d06b2ab486b",
+    "semantic_hash": ""
   },
   "frontend/src/pages/hod/DashboardPage.tsx": {
     "mtime": 1783732066.1018326,
@@ -580,9 +580,9 @@
     "semantic_hash": "cdb17f61bdf5d3e6bce7f0efbcaf13d5"
   },
   "frontend/src/pages/hod/StudentsPage.tsx": {
-    "mtime": 1783772884.1520598,
-    "ast_hash": "a581db171c5e111c557f9fbcdffe60a9",
-    "semantic_hash": "a581db171c5e111c557f9fbcdffe60a9"
+    "mtime": 1784168999.5019565,
+    "ast_hash": "1a7b432681faa8af957c6bb40b01b625",
+    "semantic_hash": ""
   },
   "frontend/src/pages/hod/SubjectsPage.tsx": {
     "mtime": 1783768311.9105058,
@@ -635,9 +635,9 @@
     "semantic_hash": "acc258c42b29118f4bc3d067094a896a"
   },
   "frontend/src/pages/student/DashboardPage.tsx": {
-    "mtime": 1783311322.5921156,
-    "ast_hash": "4d7d875ee9f10f7cf920115356313bc4",
-    "semantic_hash": "4d7d875ee9f10f7cf920115356313bc4"
+    "mtime": 1784209482.5921884,
+    "ast_hash": "038069f97335eb0950d9dfe2f8d820df",
+    "semantic_hash": ""
   },
   "frontend/src/pages/student/LeaderboardPage.tsx": {
     "mtime": 1783311668.0196729,
@@ -680,9 +680,9 @@
     "semantic_hash": "276cb9ee4bcedd0c807a70dc142f8277"
   },
   "frontend/src/pages/student/TimetablePage.tsx": {
-    "mtime": 1783311357.726504,
-    "ast_hash": "064be79ef60de4ffe665fa7bb1056362",
-    "semantic_hash": "064be79ef60de4ffe665fa7bb1056362"
+    "mtime": 1784209400.1573765,
+    "ast_hash": "9f4c2958285da444b236b8c5c86e5fd2",
+    "semantic_hash": ""
   },
   "frontend/src/pages/university/BranchesPage.tsx": {
     "mtime": 1783449882.0570664,
@@ -770,8 +770,8 @@
     "semantic_hash": "ba482a6b237a5165f872fce27383f86f"
   },
   "frontend/src/types/faculty.ts": {
-    "mtime": 1783955117.0417376,
-    "ast_hash": "15a18167e2ebe505d87a17d0b1e2d4c9",
+    "mtime": 1784209340.9496717,
+    "ast_hash": "d2479b4784184c07d116a5e3757dbe13",
     "semantic_hash": ""
   },
   "frontend/src/types/hod.ts": {
@@ -882,6 +882,31 @@
   "BUGS.md": {
     "mtime": 1783998485.6849892,
     "ast_hash": "44807fbd229f8967c3406c80340b03b9",
+    "semantic_hash": ""
+  },
+  "Backend/scripts/seed-sy3-marks.ts": {
+    "mtime": 1784203680.2620282,
+    "ast_hash": "645fcce85a00a18eb910a5a2e0ab49fc",
+    "semantic_hash": ""
+  },
+  "Backend/scripts/seed-sy3-timetable-attendance.ts": {
+    "mtime": 1784204408.958036,
+    "ast_hash": "4dcf34c4d4724160831b5bfdaa242850",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/schedule.tsx": {
+    "mtime": 1784209334.5402222,
+    "ast_hash": "b7ac42a178b33d734483a970fa977f2c",
+    "semantic_hash": ""
+  },
+  "FREE_TIER_DEPLOYMENT_PLAN.md": {
+    "mtime": 1784211207.2900574,
+    "ast_hash": "9a3f81fdbf9190c1e4fbce2d1e80f0b9",
+    "semantic_hash": ""
+  },
+  "FRONTEND_BACKEND_CHANGES.md": {
+    "mtime": 1784212078.8725917,
+    "ast_hash": "7c79ee0b99d83dfdbd56a704507309e3",
     "semantic_hash": ""
   }
 }

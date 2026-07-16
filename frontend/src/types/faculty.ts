@@ -30,11 +30,13 @@ export interface TimetableSlot {
   id: string
   dayOfWeek?: number
   dayLabel?: string
-  startTime: string
-  endTime: string
-  subject?: { code: string; name: string }
+  slotStart: string
+  slotEnd: string
+  subject?: { code: string; name?: string }
   batch?: { code: string }
   room?: string
+  facultyName?: string
+  attendanceMarked?: boolean
 }
 
 export interface TodayTimetable {
