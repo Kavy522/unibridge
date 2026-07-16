@@ -22,3 +22,5 @@ Backend/.env
 HOD_UI
 
 graphify-out
+
+**/*.md
