@@ -10,6 +10,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
   DATABASE_URL: z.string().url(),
+  // When set, /metrics requires `Authorization: Bearer <token>` (use in production — Render exposes it publicly).
+  METRICS_TOKEN: z.string().optional(),
   // Supabase S3-compatible endpoint (…/storage/v1/s3) used for note uploads.
   STORAGE_BUCKET_URL: z.string().url().optional(),
   // S3 access keys for the endpoint above (Supabase Dashboard → Storage → S3 access keys).

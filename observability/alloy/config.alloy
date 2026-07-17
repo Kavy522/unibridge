@@ -1,0 +1,30 @@
+// UniBridge → Grafana Cloud (Option A).
+// This agent scrapes the Render backend's token-protected /metrics endpoint and
+// remote-writes the samples to Grafana Cloud's hosted Prometheus.
+// Every secret comes from an environment variable — nothing sensitive lives in this file,
+// so it is safe to commit to GitHub.
+
+prometheus.scrape "unibridge_api" {
+  targets = [
+    {
+      __address__ = sys.env("RENDER_HOST"), // e.g. "unibridge-api.onrender.com:443"
+      instance    = "unibridge-api",
+      env         = "production",
+    },
+  ]
+  scheme          = "https"
+  metrics_path    = "/metrics"
+  scrape_interval = "30s"
+  bearer_token    = sys.env("METRICS_TOKEN") // must match METRICS_TOKEN set on Render
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROM_URL") // .../api/prom/push from Grafana Cloud
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROM_USER") // numeric instance / stack id
+      password = sys.env("GRAFANA_CLOUD_API_KEY")   // Cloud Access Policy token (metrics:write)
+    }
+  }
+}

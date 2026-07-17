@@ -1,0 +1,22 @@
+# Production for Render + Vercel: Prometheus runs on a small always-on host
+# (Railway / Fly.io / a tiny VM), NOT on Render free (which sleeps after 15 min).
+# It scrapes the backend over its PUBLIC HTTPS URL, authenticated with METRICS_TOKEN.
+#
+# Set the same value as the backend's METRICS_TOKEN env var below.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: unibridge-api
+    scheme: https
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials: "REPLACE_WITH_METRICS_TOKEN"
+    static_configs:
+      - targets: ["unibridge-api.onrender.com"] # <- your Render backend host (no https://, no /metrics)
+        labels:
+          env: production
+# Vercel (frontend) exposes no Prometheus metrics — it's static/serverless.
+# Use Vercel Analytics / Speed Insights for frontend observability instead.

@@ -24,3 +24,13 @@ HOD_UI
 graphify-out
 
 **/*.md
+!DEPLOYMENT_COST_REPORT.md
+!FREE_TIER_DEPLOYMENT_PLAN.md
+!FRONTEND_BACKEND_CHANGES.md
+!observability/
+!observability/README.md
+!observability/alloy/README.md
+
+# Local Grafana/exporter/agent credentials
+observability/.env
+observability/alloy/.env
